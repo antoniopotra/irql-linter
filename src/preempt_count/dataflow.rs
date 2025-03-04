@@ -39,10 +39,6 @@ impl AdjustmentBounds {
         self.lo == Some(0) && self.hi == Some(0)
     }
 
-    pub fn unbounded() -> Self {
-        AdjustmentBounds { lo: None, hi: None }
-    }
-
     pub fn offset(&self, offset: i32) -> Self {
         AdjustmentBounds {
             lo: self.lo.map(|x| x + offset),

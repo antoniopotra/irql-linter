@@ -77,7 +77,7 @@ pub fn build_drop_shim<'tcx>(
     );
 
     // The first argument (index 0), but add 1 for the return value.
-    let dropee_ptr = Place::from(Local::new(1 + 0));
+    let dropee_ptr = Place::from(Local::new(1));
     let patch = {
         let mut elaborator = DropShimElaborator {
             body: &body,

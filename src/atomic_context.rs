@@ -330,21 +330,15 @@ impl<'tcx> LateLintPass<'tcx> for AtomicContext<'tcx> {
             }
 
             fn visit_foreign_item(&mut self, i: &'tcx ForeignItem<'tcx>) {
-                match i.kind {
-                    ForeignItemKind::Fn(..) => {
-                        (self.fn_callback)(i.owner_id.def_id);
-                    }
-                    _ => (),
+                if let ForeignItemKind::Fn(..) = i.kind {
+                    (self.fn_callback)(i.owner_id.def_id);
                 }
                 hir_visit::walk_foreign_item(self, i);
             }
 
             fn visit_trait_item(&mut self, ti: &'tcx TraitItem<'tcx>) {
-                match ti.kind {
-                    TraitItemKind::Fn(_, TraitFn::Required(_)) => {
-                        (self.fn_callback)(ti.owner_id.def_id);
-                    }
-                    _ => (),
+                if let TraitItemKind::Fn(_, TraitFn::Required(_)) = ti.kind {
+                    (self.fn_callback)(ti.owner_id.def_id);
                 }
                 hir_visit::walk_trait_item(self, ti)
             }

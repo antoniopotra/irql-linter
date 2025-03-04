@@ -10,7 +10,7 @@ use rustc_span::sym;
 use crate::attribute::PreemptionCount;
 use crate::ctxt::AnalysisCtxt;
 
-impl<'tcx> AnalysisCtxt<'tcx> {
+impl AnalysisCtxt<'_> {
     fn preemption_count_annotation_fallback(&self, def_id: DefId) -> PreemptionCount {
         match self.crate_name(def_id.krate).as_str() {
             // Happens in a test environment where build-std is not enabled.
@@ -46,17 +46,15 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                 && wake == *crate::symbol::wake
                 && let DefPathData::TypeNs(waker) = data[2].data
                 && waker == *crate::symbol::Waker
-            {
-                if fn_name == sym::clone
+                && (fn_name == sym::clone
                     || fn_name == *crate::symbol::wake
-                    || fn_name == *crate::symbol::wake_by_ref
-                {
-                    return PreemptionCount {
-                        adjustment: Some(0),
-                        expectation: Some(super::ExpectationRange::top()),
-                        unchecked: true,
-                    };
-                }
+                    || fn_name == *crate::symbol::wake_by_ref)
+            {
+                return PreemptionCount {
+                    adjustment: Some(0),
+                    expectation: Some(super::ExpectationRange::top()),
+                    unchecked: true,
+                };
             }
 
             return Default::default();
@@ -158,11 +156,8 @@ memoize!(
 
         let hir_id = cx.local_def_id_to_hir_id(local_def_id);
         for attr in cx.klint_attributes(hir_id).iter() {
-            match attr {
-                crate::attribute::KlintAttribute::PreemptionCount(pc) => {
-                    return *pc;
-                }
-                _ => (),
+            if let crate::attribute::KlintAttribute::PreemptionCount(pc) = attr {
+                return *pc;
             }
         }
 
@@ -173,7 +168,7 @@ memoize!(
 impl crate::ctxt::PersistentQuery for preemption_count_annotation {
     type LocalKey<'tcx> = DefIndex;
 
-    fn into_crate_and_local<'tcx>(key: Self::Key<'tcx>) -> (CrateNum, Self::LocalKey<'tcx>) {
+    fn into_crate_and_local(key: Self::Key<'_>) -> (CrateNum, Self::LocalKey<'_>) {
         (key.krate, key.index)
     }
 }
@@ -192,11 +187,8 @@ memoize!(
 
         let hir_id = cx.local_def_id_to_hir_id(local_def_id);
         for attr in cx.klint_attributes(hir_id).iter() {
-            match attr {
-                crate::attribute::KlintAttribute::DropPreemptionCount(pc) => {
-                    return *pc;
-                }
-                _ => (),
+            if let crate::attribute::KlintAttribute::DropPreemptionCount(pc) = attr {
+                return *pc;
             }
         }
 
@@ -207,7 +199,7 @@ memoize!(
 impl crate::ctxt::PersistentQuery for drop_preemption_count_annotation {
     type LocalKey<'tcx> = DefIndex;
 
-    fn into_crate_and_local<'tcx>(key: Self::Key<'tcx>) -> (CrateNum, Self::LocalKey<'tcx>) {
+    fn into_crate_and_local(key: Self::Key<'_>) -> (CrateNum, Self::LocalKey<'_>) {
         (key.krate, key.index)
     }
 }
@@ -220,9 +212,8 @@ memoize!(
 
         let hir_id = cx.local_def_id_to_hir_id(local_def_id);
         for attr in cx.klint_attributes(hir_id).iter() {
-            match attr {
-                crate::attribute::KlintAttribute::ReportPreeptionCount => return true,
-                _ => (),
+            if let crate::attribute::KlintAttribute::ReportPreeptionCount = attr {
+                return true;
             }
         }
 
@@ -238,9 +229,8 @@ memoize!(
 
         let hir_id = cx.local_def_id_to_hir_id(local_def_id);
         for attr in cx.klint_attributes(hir_id).iter() {
-            match attr {
-                crate::attribute::KlintAttribute::DumpMir => return true,
-                _ => (),
+            if let crate::attribute::KlintAttribute::DumpMir = attr {
+                return true;
             }
         }
 

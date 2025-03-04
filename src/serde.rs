@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::rc::Rc;
+
 use rustc_data_structures::fx::{FxHashMap, FxIndexSet};
 use rustc_data_structures::sync::Lrc;
 use rustc_middle::mir::interpret::{self, AllocDecodingState, AllocId};
@@ -164,7 +166,7 @@ macro_rules! encoder_methods {
     }
 }
 
-impl<'a, 'tcx> Encoder for EncodeContext<'tcx> {
+impl Encoder for EncodeContext<'_> {
     encoder_methods! {
         emit_usize(usize);
         emit_u128(u128);
@@ -214,7 +216,7 @@ const TAG_FULL_SPAN: u8 = 0;
 const TAG_PARTIAL_SPAN: u8 = 1;
 const TAG_RELATIVE_SPAN: u8 = 2;
 
-impl<'tcx> SpanEncoder for EncodeContext<'tcx> {
+impl SpanEncoder for EncodeContext<'_> {
     fn encode_crate_num(&mut self, crate_num: CrateNum) {
         let id = self.tcx.stable_crate_id(crate_num);
         id.encode(self);
@@ -274,7 +276,7 @@ pub struct DecodeContext<'a, 'tcx> {
     decoder: MemDecoder<'a>,
     tcx: TyCtxt<'tcx>,
     type_shorthands: FxHashMap<usize, Ty<'tcx>>,
-    alloc_decoding_state: Lrc<AllocDecodingState>,
+    alloc_decoding_state: Rc<AllocDecodingState>,
     replacement_span: Span,
     relative_file: Lrc<SourceFile>,
 }
@@ -289,7 +291,7 @@ impl<'a, 'tcx> DecodeContext<'a, 'tcx> {
         let mut decoder = MemDecoder::new(bytes, vec_position).unwrap();
         let interpret_alloc_index = Vec::<u64>::decode(&mut decoder);
         let alloc_decoding_state =
-            Lrc::new(interpret::AllocDecodingState::new(interpret_alloc_index));
+            Rc::new(interpret::AllocDecodingState::new(interpret_alloc_index));
 
         Self {
             decoder: MemDecoder::new(bytes, 0).unwrap(),
@@ -310,7 +312,7 @@ macro_rules! decoder_methods {
     }
 }
 
-impl<'a, 'tcx> Decoder for DecodeContext<'a, 'tcx> {
+impl Decoder for DecodeContext<'_, '_> {
     decoder_methods! {
         read_usize -> usize;
         read_u128 -> u128;
@@ -344,7 +346,7 @@ impl<'a, 'tcx> Decoder for DecodeContext<'a, 'tcx> {
     }
 }
 
-impl<'a, 'tcx> TyDecoder for DecodeContext<'a, 'tcx> {
+impl<'tcx> TyDecoder for DecodeContext<'_, 'tcx> {
     const CLEAR_CROSS_CRATE: bool = true;
 
     type I = TyCtxt<'tcx>;
@@ -384,7 +386,7 @@ impl<'a, 'tcx> TyDecoder for DecodeContext<'a, 'tcx> {
     }
 }
 
-impl<'a, 'tcx> SpanDecoder for DecodeContext<'a, 'tcx> {
+impl SpanDecoder for DecodeContext<'_, '_> {
     fn decode_crate_num(&mut self) -> CrateNum {
         let id = StableCrateId::decode(self);
         self.tcx.stable_crate_id_to_crate_num(id)

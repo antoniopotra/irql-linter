@@ -13,21 +13,11 @@ use rustc_span::Span;
 
 use crate::preempt_count::ExpectationRange;
 
-#[derive(Debug, Clone, Copy, Encodable, Decodable)]
+#[derive(Debug, Clone, Copy, Encodable, Decodable, Default)]
 pub struct PreemptionCount {
     pub adjustment: Option<i32>,
     pub expectation: Option<ExpectationRange>,
     pub unchecked: bool,
-}
-
-impl Default for PreemptionCount {
-    fn default() -> Self {
-        PreemptionCount {
-            adjustment: None,
-            expectation: None,
-            unchecked: false,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -73,7 +63,7 @@ struct AttrParser<'tcx> {
     hir_id: HirId,
 }
 
-impl<'tcx> AttrParser<'tcx> {
+impl AttrParser<'_> {
     fn error(
         &self,
         span: Span,
@@ -288,16 +278,16 @@ impl<'tcx> AttrParser<'tcx> {
         if let Some(inclusive) = inclusive {
             cursor.next();
 
-            let skip_hi = match cursor.look_ahead(0) {
+            let skip_hi = matches!(
+                cursor.look_ahead(0),
                 TokenTree::Token(
                     token::Token {
                         kind: token::TokenKind::Comma | token::TokenKind::Eof,
                         ..
                     },
                     _,
-                ) => true,
-                _ => false,
-            };
+                )
+            );
 
             if skip_hi {
                 end = None;

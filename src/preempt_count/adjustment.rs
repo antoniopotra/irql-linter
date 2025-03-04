@@ -190,10 +190,10 @@ impl<'tcx> AnalysisCtxt<'tcx> {
             "cannot infer preemption count adjustment at this point",
         );
 
-        let mut count = 0;
-        for mut prev_block in body.basic_blocks.predecessors()[first_problematic_block]
+        for (count, mut prev_block) in body.basic_blocks.predecessors()[first_problematic_block]
             .iter()
             .copied()
+            .enumerate()
         {
             results.seek_to_block_end(prev_block);
             let mut end_adjustment = results.get().unwrap();
@@ -248,7 +248,8 @@ impl<'tcx> AnalysisCtxt<'tcx> {
 
             let mut msg = match start_adjustment.is_single_value() {
                 None => {
-                    format!("preemption count adjustment is changed in the previous iteration of the loop")
+                    "preemption count adjustment is changed in the previous iteration of the loop"
+                        .to_string()
                 }
                 Some(_) => {
                     format!(
@@ -263,7 +264,6 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                 1 => msg = format!("while {}", msg),
                 _ => msg = format!("and {}", msg),
             }
-            count += 1;
             diag.span_note(span, msg);
         }
         self.emit_with_use_site_info(diag)
@@ -298,11 +298,8 @@ impl<'tcx> AnalysisCtxt<'tcx> {
 
         let mut adjustment = AdjustmentBoundsOrError::default();
         for (b, data) in rustc_middle::mir::traversal::reachable(body) {
-            match data.terminator().kind {
-                TerminatorKind::Return => {
-                    adjustment.join(&analysis_result.results().entry_set_for_block(b));
-                }
-                _ => (),
+            if data.terminator().kind == TerminatorKind::Return {
+                adjustment.join(analysis_result.results().entry_set_for_block(b));
             }
         }
         let adjustment = adjustment.into_result()?;
@@ -941,7 +938,7 @@ memoize!(
 impl crate::ctxt::PersistentQuery for instance_adjustment {
     type LocalKey<'tcx> = Instance<'tcx>;
 
-    fn into_crate_and_local<'tcx>(key: Self::Key<'tcx>) -> (CrateNum, Self::LocalKey<'tcx>) {
+    fn into_crate_and_local(key: Self::Key<'_>) -> (CrateNum, Self::LocalKey<'_>) {
         let instance = key.value;
         (instance.def_id().krate, instance)
     }

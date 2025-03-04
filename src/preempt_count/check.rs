@@ -25,7 +25,7 @@ struct MirNeighborVisitor<'mir, 'tcx, 'cx> {
     result: Result<(), Error>,
 }
 
-impl<'mir, 'tcx, 'cx> MirNeighborVisitor<'mir, 'tcx, 'cx> {
+impl<'tcx> MirNeighborVisitor<'_, 'tcx, '_> {
     fn monomorphize<T: TypeFoldable<TyCtxt<'tcx>> + Clone>(&self, v: T) -> T {
         self.instance.instantiate_mir_and_normalize_erasing_regions(
             self.cx.tcx,
@@ -40,10 +40,10 @@ impl<'mir, 'tcx, 'cx> MirNeighborVisitor<'mir, 'tcx, 'cx> {
         target_ty: Ty<'tcx>,
         span: Span,
     ) -> Result<(), Error> {
-        let ty::Dynamic(ref source_trait_ref, ..) = source_ty.kind() else {
+        let ty::Dynamic(source_trait_ref, ..) = source_ty.kind() else {
             bug!()
         };
-        let ty::Dynamic(ref target_trait_ref, ..) = target_ty.kind() else {
+        let ty::Dynamic(target_trait_ref, ..) = target_ty.kind() else {
             bug!()
         };
 
@@ -144,7 +144,7 @@ impl<'mir, 'tcx, 'cx> MirNeighborVisitor<'mir, 'tcx, 'cx> {
                         source_ty,
                         target_ty,
                     );
-                if let ty::Dynamic(ref trait_ty, ..) = target_ty.kind() {
+                if let ty::Dynamic(trait_ty, ..) = target_ty.kind() {
                     if let ty::Dynamic(..) = source_ty.kind() {
                         // This is trait upcasting.
                         self.check_vtable_unsizing(source_ty, target_ty, span)?;
@@ -344,7 +344,7 @@ impl<'mir, 'tcx, 'cx> MirNeighborVisitor<'mir, 'tcx, 'cx> {
     }
 }
 
-impl<'mir, 'tcx, 'cx> MirVisitor<'tcx> for MirNeighborVisitor<'mir, 'tcx, 'cx> {
+impl<'tcx> MirVisitor<'tcx> for MirNeighborVisitor<'_, 'tcx, '_> {
     fn visit_rvalue(&mut self, rvalue: &mir::Rvalue<'tcx>, location: Location) {
         if self.result.is_err() {
             return;
@@ -415,7 +415,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
             body,
             result: Ok(()),
         };
-        visitor.visit_body(&body);
+        visitor.visit_body(body);
         visitor.result
     }
 
@@ -753,9 +753,7 @@ memoize!(
         }
 
         let mir = crate::mir::drop_shim::build_drop_shim(cx, instance.def_id(), typing_env, ty);
-        let result = cx.indirect_check(typing_env, instance, &mir);
-
-        result
+        cx.indirect_check(typing_env, instance, &mir)
     }
 );
 
@@ -821,8 +819,6 @@ memoize!(
         }
 
         let mir = cx.analysis_instance_mir(instance.def);
-        let result = cx.indirect_check(typing_env, instance, mir);
-
-        result
+        cx.indirect_check(typing_env, instance, mir)
     }
 );

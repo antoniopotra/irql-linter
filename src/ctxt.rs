@@ -4,6 +4,7 @@
 
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use rusqlite::{Connection, OptionalExtension};
@@ -26,7 +27,7 @@ pub(crate) trait Query: 'static {
 pub(crate) trait QueryValueDecodable: Query {
     fn encode_value<'tcx>(value: &Self::Value<'tcx>, cx: &mut crate::serde::EncodeContext<'tcx>);
 
-    fn decode_value<'a, 'tcx>(cx: &mut crate::serde::DecodeContext<'a, 'tcx>) -> Self::Value<'tcx>;
+    fn decode_value<'tcx>(cx: &mut crate::serde::DecodeContext<'_, 'tcx>) -> Self::Value<'tcx>;
 }
 
 impl<Q: Query> QueryValueDecodable for Q
@@ -38,7 +39,7 @@ where
         Encodable::encode(value, cx)
     }
 
-    fn decode_value<'a, 'tcx>(cx: &mut crate::serde::DecodeContext<'a, 'tcx>) -> Self::Value<'tcx> {
+    fn decode_value<'tcx>(cx: &mut crate::serde::DecodeContext<'_, 'tcx>) -> Self::Value<'tcx> {
         Decodable::decode(cx)
     }
 }
@@ -46,13 +47,13 @@ where
 pub(crate) trait PersistentQuery: QueryValueDecodable {
     type LocalKey<'tcx>: Encodable<crate::serde::EncodeContext<'tcx>>;
 
-    fn into_crate_and_local<'tcx>(key: Self::Key<'tcx>) -> (CrateNum, Self::LocalKey<'tcx>);
+    fn into_crate_and_local(key: Self::Key<'_>) -> (CrateNum, Self::LocalKey<'_>);
 }
 
 pub struct AnalysisCtxt<'tcx> {
     pub tcx: TyCtxt<'tcx>,
     pub local_conn: Connection,
-    pub sql_conn: RefCell<FxHashMap<CrateNum, Option<Lrc<Connection>>>>,
+    pub sql_conn: RefCell<FxHashMap<CrateNum, Option<Rc<Connection>>>>,
 
     pub call_stack: RefCell<Vec<UseSite<'tcx>>>,
     pub query_cache: RefCell<FxHashMap<TypeId, Lrc<dyn Any>>>,
@@ -134,10 +135,9 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         let cache = guard
             .entry(key)
             .or_insert_with(|| {
-                let cache = Lrc::new(RefCell::new(
+                Lrc::new(RefCell::new(
                     FxHashMap::<Q::Key<'static>, Q::Value<'static>>::default(),
-                ));
-                cache
+                ))
             })
             .clone()
             .downcast::<RefCell<FxHashMap<Q::Key<'static>, Q::Value<'static>>>>()
@@ -147,7 +147,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         unsafe { std::mem::transmute(cache) }
     }
 
-    pub(crate) fn sql_connection(&self, cnum: CrateNum) -> Option<Lrc<Connection>> {
+    pub(crate) fn sql_connection(&self, cnum: CrateNum) -> Option<Rc<Connection>> {
         if let Some(v) = self.sql_conn.borrow().get(&cnum) {
             return v.clone();
         }
@@ -188,7 +188,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                     );
                 }
 
-                result = Some(Lrc::new(conn));
+                result = Some(Rc::new(conn));
                 break;
             }
         }
@@ -287,15 +287,14 @@ impl<'tcx> AnalysisCtxt<'tcx> {
 
         // Double check that the rmeta file is .rlib or .rmeta
         let ext = rmeta_path.extension().unwrap();
-        let conn;
-        if ext == "rlib" || ext == "rmeta" {
+        let conn = if ext == "rlib" || ext == "rmeta" {
             let klint_out = rmeta_path.with_extension("klint");
             let _ = std::fs::remove_file(&klint_out);
-            conn = Connection::open(&klint_out).unwrap();
+            Connection::open(&klint_out).unwrap()
         } else {
             info!("klint called on a binary crate");
-            conn = Connection::open_in_memory().unwrap();
-        }
+            Connection::open_in_memory().unwrap()
+        };
 
         // Check the schema version matches the current version
         let mut schema_ver = 0;
@@ -305,7 +304,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         })
         .unwrap();
         conn.execute("begin immediate", ()).unwrap();
-        conn.pragma_update(None, "user_version", &SCHEMA_VERSION)
+        conn.pragma_update(None, "user_version", SCHEMA_VERSION)
             .unwrap();
 
         let ret = Self {

@@ -30,7 +30,7 @@ use crate::ctxt::PersistentQuery;
 static MIR_CACHE: LazyLock<Mutex<FxHashMap<LocalDefId, AtomicPtr<()>>>> =
     LazyLock::new(|| Mutex::new(FxHashMap::default()));
 
-pub fn local_analysis_mir<'tcx>(tcx: TyCtxt<'tcx>, did: LocalDefId) -> &'tcx Body<'tcx> {
+pub fn local_analysis_mir(tcx: TyCtxt<'_>, did: LocalDefId) -> &Body<'_> {
     if tcx.is_constructor(did.to_def_id()) {
         return tcx.optimized_mir(did.to_def_id());
     }
@@ -159,7 +159,7 @@ memoize!(
 impl PersistentQuery for analysis_mir {
     type LocalKey<'tcx> = DefIndex;
 
-    fn into_crate_and_local<'tcx>(key: Self::Key<'tcx>) -> (CrateNum, Self::LocalKey<'tcx>) {
+    fn into_crate_and_local(key: Self::Key<'_>) -> (CrateNum, Self::LocalKey<'_>) {
         (key.krate, key.index)
     }
 }
@@ -176,9 +176,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                 DefKind::Closure if tcx.is_coroutine(def_id.to_def_id()) => true,
                 DefKind::AssocFn | DefKind::Fn | DefKind::Closure => {
                     let generics = tcx.generics_of(def_id);
-                    let needs_inline = generics.requires_monomorphization(tcx)
-                        || tcx.cross_crate_inlinable(def_id);
-                    needs_inline
+                    generics.requires_monomorphization(tcx) || tcx.cross_crate_inlinable(def_id)
                 }
                 _ => false,
             };
