@@ -46,6 +46,8 @@ mod ctxt;
 mod atomic_context;
 mod attribute;
 mod infallible_allocation;
+mod irql;
+mod irql_violation;
 mod mir;
 mod monomorphize_collector;
 mod preempt_count;
@@ -88,9 +90,11 @@ impl Callbacks for MyCallbacks {
             lint_store.register_lints(&[INCORRECT_ATTRIBUTE]);
             lint_store.register_lints(&[infallible_allocation::INFALLIBLE_ALLOCATION]);
             lint_store.register_lints(&[atomic_context::ATOMIC_CONTEXT]);
-            // lint_store
-            //     .register_late_pass(|_| Box::new(infallible_allocation::InfallibleAllocation));
+            lint_store.register_lints(&[irql_violation::IRQL_VIOLATION]);
+            lint_store
+                .register_late_pass(|_| Box::new(infallible_allocation::InfallibleAllocation));
             lint_store.register_late_pass(|tcx| Box::new(atomic_context::AtomicContext::new(tcx)));
+            lint_store.register_late_pass(|_| Box::new(irql_violation::IrqlViolation));
         }));
     }
 }
