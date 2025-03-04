@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::any::{Any, TypeId};
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::Arc;
-
+use crate::preempt_count::UseSite;
 use rusqlite::{Connection, OptionalExtension};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::sync::Lrc;
@@ -14,8 +10,10 @@ use rustc_hir::def_id::{CrateNum, LOCAL_CRATE};
 use rustc_middle::ty::TyCtxt;
 use rustc_serialize::{Decodable, Encodable};
 use rustc_span::{Span, DUMMY_SP};
-
-use crate::preempt_count::UseSite;
+use std::any::{Any, TypeId};
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) trait Query: 'static {
     const NAME: &'static str;

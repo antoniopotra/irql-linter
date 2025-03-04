@@ -4,10 +4,8 @@
 
 pub mod drop_shim;
 
-use std::sync::atomic::AtomicPtr;
-use std::sync::atomic::Ordering;
-use std::sync::{LazyLock, Mutex};
-
+use crate::ctxt::AnalysisCtxt;
+use crate::ctxt::PersistentQuery;
 use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::{self as hir, def::DefKind};
 use rustc_middle::mir::CallSource;
@@ -18,9 +16,9 @@ use rustc_middle::mir::{
 use rustc_middle::ty::{self, TyCtxt};
 use rustc_span::def_id::{CrateNum, DefId, DefIndex, LocalDefId};
 use rustc_span::{source_map::Spanned, sym, DUMMY_SP};
-
-use crate::ctxt::AnalysisCtxt;
-use crate::ctxt::PersistentQuery;
+use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::Ordering;
+use std::sync::{LazyLock, Mutex};
 
 // HACK: we can't add new queries to `TyCtxt` without changing rustc code, so
 // use this as a "poor man's query" for now.

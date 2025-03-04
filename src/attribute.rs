@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::preempt_count::ExpectationRange;
 use rustc_ast::tokenstream::{self, TokenTree};
 use rustc_ast::{ast, token};
 use rustc_data_structures::sync::Lrc;
@@ -10,8 +11,6 @@ use rustc_hir::HirId;
 use rustc_middle::ty::TyCtxt;
 use rustc_span::symbol::Ident;
 use rustc_span::Span;
-
-use crate::preempt_count::ExpectationRange;
 
 #[derive(Debug, Clone, Copy, Encodable, Decodable, Default)]
 pub struct PreemptionCount {

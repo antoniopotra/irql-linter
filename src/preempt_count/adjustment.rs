@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use super::dataflow::{AdjustmentBoundsOrError, AdjustmentComputation};
+use super::{Error, PolyDisplay, UseSiteKind};
+use crate::ctxt::AnalysisCtxt;
 use rustc_errors::{Diag, EmissionGuarantee, ErrorGuaranteed, MultiSpan};
 use rustc_hir::def_id::{CrateNum, DefId};
 use rustc_hir::LangItem;
@@ -12,10 +15,6 @@ use rustc_middle::ty::{
 use rustc_mir_dataflow::Analysis;
 use rustc_mir_dataflow::JoinSemiLattice;
 use rustc_trait_selection::infer::TyCtxtInferExt;
-
-use super::dataflow::{AdjustmentBoundsOrError, AdjustmentComputation};
-use super::{Error, PolyDisplay, UseSiteKind};
-use crate::ctxt::AnalysisCtxt;
 
 impl<'tcx> AnalysisCtxt<'tcx> {
     fn drop_adjustment_overflow(

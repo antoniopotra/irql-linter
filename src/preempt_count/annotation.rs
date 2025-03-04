@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::attribute::PreemptionCount;
+use crate::ctxt::AnalysisCtxt;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, DefIndex};
 use rustc_hir::definitions::DefPathData;
 use rustc_span::sym;
-
-use crate::attribute::PreemptionCount;
-use crate::ctxt::AnalysisCtxt;
 
 impl AnalysisCtxt<'_> {
     fn preemption_count_annotation_fallback(&self, def_id: DefId) -> PreemptionCount {

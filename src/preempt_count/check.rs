@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use super::{Error, PolyDisplay, UseSite, UseSiteKind};
+use crate::ctxt::AnalysisCtxt;
 use rustc_hir::def_id::DefId;
 use rustc_hir::LangItem;
 use rustc_infer::traits::util::PredicateSet;
@@ -13,9 +15,6 @@ use rustc_middle::ty::{
     TypeFoldable, TypeVisitableExt, TypingEnv, Upcast,
 };
 use rustc_span::Span;
-
-use super::{Error, PolyDisplay, UseSite, UseSiteKind};
-use crate::ctxt::AnalysisCtxt;
 
 struct MirNeighborVisitor<'mir, 'tcx, 'cx> {
     cx: &'cx AnalysisCtxt<'tcx>,

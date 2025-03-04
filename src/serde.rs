@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use std::rc::Rc;
-
 use rustc_data_structures::fx::{FxHashMap, FxIndexSet};
 use rustc_data_structures::sync::Lrc;
 use rustc_middle::mir::interpret::{self, AllocDecodingState, AllocId};
@@ -16,6 +14,7 @@ use rustc_span::{
     BytePos, SourceFile, Span, SpanDecoder, SpanEncoder, StableSourceFileId, Symbol, SyntaxContext,
     DUMMY_SP,
 };
+use std::rc::Rc;
 
 // This is the last available version of `MemEncoder` in rustc_serialize::opaque before its removal.
 pub struct MemEncoder {

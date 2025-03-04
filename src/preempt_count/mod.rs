@@ -8,12 +8,11 @@ pub mod check;
 pub mod dataflow;
 pub mod expectation;
 
+use self::dataflow::AdjustmentBounds;
 use rustc_errors::ErrorGuaranteed;
 use rustc_middle::ty::{Instance, PseudoCanonicalInput};
 use rustc_mir_dataflow::lattice::MeetSemiLattice;
 use rustc_span::Span;
-
-use self::dataflow::AdjustmentBounds;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encodable, Decodable)]
 pub enum Error {

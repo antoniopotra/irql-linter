@@ -9,6 +9,12 @@
 #![feature(never_type)]
 #![warn(rustc::internal)]
 
+#[macro_use]
+extern crate rustc_macros;
+#[macro_use]
+extern crate rustc_middle;
+#[macro_use]
+extern crate tracing;
 extern crate rustc_ast;
 extern crate rustc_data_structures;
 extern crate rustc_driver;
@@ -19,10 +25,6 @@ extern crate rustc_infer;
 extern crate rustc_interface;
 extern crate rustc_lint;
 extern crate rustc_log;
-#[macro_use]
-extern crate rustc_macros;
-#[macro_use]
-extern crate rustc_middle;
 extern crate rustc_mir_dataflow;
 extern crate rustc_monomorphize;
 extern crate rustc_serialize;
@@ -31,21 +33,16 @@ extern crate rustc_span;
 extern crate rustc_target;
 extern crate rustc_trait_selection;
 
-#[macro_use]
-extern crate tracing;
-
-use std::process::ExitCode;
-use std::sync::atomic::AtomicPtr;
-
 use rustc_driver::Callbacks;
 use rustc_interface::interface::Config;
 use rustc_session::config::ErrorOutputType;
 use rustc_session::EarlyDiagCtxt;
+use std::process::ExitCode;
+use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering;
 
 #[macro_use]
 mod ctxt;
-
 mod atomic_context;
 mod attribute;
 mod infallible_allocation;

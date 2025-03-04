@@ -2,15 +2,14 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::ctxt::AnalysisCtxt;
+use crate::preempt_count::*;
 use rustc_hir::def_id::LocalDefId;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::ty::{GenericArgs, Instance, TyCtxt, TypingEnv};
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::Span;
-
-use crate::ctxt::AnalysisCtxt;
-use crate::preempt_count::*;
 
 // A description of how atomic context analysis works.
 //

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use crate::monomorphize_collector::MonoItemCollectionMode;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_lint::{LateContext, LateLintPass, LintContext};
 use rustc_middle::mir::mono::MonoItem;
@@ -9,8 +10,6 @@ use rustc_middle::ty::Instance;
 use rustc_session::{declare_lint_pass, declare_tool_lint};
 use rustc_span::source_map::Spanned;
 use rustc_span::symbol::sym;
-
-use crate::monomorphize_collector::MonoItemCollectionMode;
 
 declare_tool_lint! {
     pub klint::INFALLIBLE_ALLOCATION,
