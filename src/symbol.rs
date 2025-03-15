@@ -29,4 +29,8 @@ def! {
     Waker,
     wake,
     wake_by_ref,
+    irql,
+    require,
+    always,
+    raise,
 }
