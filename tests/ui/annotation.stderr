@@ -1,4 +1,4 @@
-error: incorrect usage of `#[kint::preempt_count]`
+error: incorrect usage of klint attributes
  --> $DIR/annotation.rs:7:1
   |
 7 | #[klint::preempt_count]
@@ -7,7 +7,7 @@ error: incorrect usage of `#[kint::preempt_count]`
   = help: correct usage looks like `#[kint::preempt_count(...)]`
   = note: `#[forbid(klint::incorrect_attribute)]` on by default
 
-error: incorrect usage of `#[kint::preempt_count]`
+error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:10:23
    |
 10 | #[klint::preempt_count()]
@@ -15,7 +15,7 @@ error: incorrect usage of `#[kint::preempt_count]`
    |
    = help: at least one of `adjust` or `expect` property must be specified
 
-error: incorrect usage of `#[kint::preempt_count]`
+error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:13:33
    |
 13 | #[klint::preempt_count(adjust = )]
@@ -23,7 +23,7 @@ error: incorrect usage of `#[kint::preempt_count]`
    |
    = help: an integer expected
 
-error: incorrect usage of `#[kint::preempt_count]`
+error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:16:33
    |
 16 | #[klint::preempt_count(expect = )]
@@ -31,7 +31,7 @@ error: incorrect usage of `#[kint::preempt_count]`
    |
    = help: a range expected
 
-error: incorrect usage of `#[kint::preempt_count]`
+error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:22:23
    |
 22 | #[klint::preempt_count(unchecked)]
@@ -39,5 +39,85 @@ error: incorrect usage of `#[kint::preempt_count]`
    |
    = help: at least one of `adjust` or `expect` property must be specified
 
-error: aborting due to 5 previous errors
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:25:1
+   |
+25 | #[klint::irql]
+   | ^^^^^^^^^^^^^^
+   |
+   = help: correct usage looks like `#[kint::irql(...)]`
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:28:14
+   |
+28 | #[klint::irql()]
+   |              ^^
+   |
+   = help: at least one of `require`, `always`, or `raise` property must be specified
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:31:22
+   |
+31 | #[klint::irql(require)]
+   |                      ^
+   |
+   = help: `=` expected after property name
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:34:25
+   |
+34 | #[klint::irql(require = )]
+   |                         ^
+   |
+   = help: expected an integer between 0 and 31
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:37:28
+   |
+37 | #[klint::irql(require = 1..)]
+   |                            ^
+   |
+   = help: expected an integer between 0 and 31
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:40:26
+   |
+40 | #[klint::irql(require = 1..=5)]
+   |                          ^^^
+   |
+   = help: `,` expected between property values
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:43:25
+   |
+43 | #[klint::irql(require = ..5)]
+   |                         ^^
+   |
+   = help: expected an integer between 0 and 31
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:46:25
+   |
+46 | #[klint::irql(require = -1)]
+   |                         ^
+   |
+   = help: expected an integer between 0 and 31
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:49:28
+   |
+49 | #[klint::irql(require = 0..32)]
+   |                            ^^
+   |
+   = help: expected an integer between 0 and 31
+
+error: incorrect usage of klint attributes
+  --> $DIR/annotation.rs:52:29
+   |
+52 | #[klint::irql(require = 5..1)]
+   |                             ^
+   |
+   = help: syntax is not a valid range
+
+error: aborting due to 15 previous errors
 

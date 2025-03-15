@@ -5,19 +5,49 @@
 #![crate_type = "lib"]
 
 #[klint::preempt_count]
-fn a() {}
+fn t1() {}
 
 #[klint::preempt_count()]
-fn b() {}
+fn t2() {}
 
 #[klint::preempt_count(adjust = )]
-fn c() {}
+fn t3() {}
 
 #[klint::preempt_count(expect = )]
-fn d() {}
+fn t4() {}
 
 #[klint::preempt_count(expect = ..)]
-fn e() {}
+fn t5() {}
 
 #[klint::preempt_count(unchecked)]
-fn f() {}
+fn t6() {}
+
+#[klint::irql]
+fn t7() {}
+
+#[klint::irql()]
+fn t8() {}
+
+#[klint::irql(require)]
+fn t9() {}
+
+#[klint::irql(require = )]
+fn t10() {}
+
+#[klint::irql(require = 1..)]
+fn t11() {}
+
+#[klint::irql(require = 1..=5)]
+fn t12() {}
+
+#[klint::irql(require = ..5)]
+fn t13() {}
+
+#[klint::irql(require = -1)]
+fn t14() {}
+
+#[klint::irql(require = 0..32)]
+fn t15() {}
+
+#[klint::irql(require = 5..1)]
+fn t16() {}
