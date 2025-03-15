@@ -52,7 +52,6 @@ pub struct AnalysisCtxt<'tcx> {
     pub tcx: TyCtxt<'tcx>,
     pub local_conn: Connection,
     pub sql_conn: RefCell<FxHashMap<CrateNum, Option<Rc<Connection>>>>,
-
     pub call_stack: RefCell<Vec<UseSite<'tcx>>>,
     pub query_cache: RefCell<FxHashMap<TypeId, Lrc<dyn Any>>>,
 }
@@ -318,6 +317,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         ret.sql_create_table::<crate::preempt_count::adjustment::instance_adjustment>();
         ret.sql_create_table::<crate::preempt_count::expectation::instance_expectation>();
         ret.sql_create_table::<crate::mir::analysis_mir>();
+        ret.sql_create_table::<crate::irql::annotation::irql_annotation>();
         ret
     }
 }

@@ -24,7 +24,7 @@ impl AnalysisCtxt<'_> {
         Default::default()
     }
 
-    fn core_out_of_band_annotation(&self, def_id: DefId) -> PreemptionCount {
+    fn core_out_of_band_preemption_count_annotation(&self, def_id: DefId) -> PreemptionCount {
         if self.def_kind(def_id) == DefKind::AssocFn
             && let Some(impl_) = self.impl_of_method(def_id)
         {
@@ -143,7 +143,7 @@ memoize!(
         def_id: DefId,
     ) -> PreemptionCount {
         if cx.crate_name(def_id.krate) == sym::core {
-            return cx.core_out_of_band_annotation(def_id);
+            return cx.core_out_of_band_preemption_count_annotation(def_id);
         }
 
         let Some(local_def_id) = def_id.as_local() else {

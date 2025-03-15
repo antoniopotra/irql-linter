@@ -94,7 +94,7 @@ impl Callbacks for MyCallbacks {
             lint_store
                 .register_late_pass(|_| Box::new(infallible_allocation::InfallibleAllocation));
             lint_store.register_late_pass(|tcx| Box::new(atomic_context::AtomicContext::new(tcx)));
-            lint_store.register_late_pass(|_| Box::new(irql_rules::IrqlRules));
+            lint_store.register_late_pass(|tcx| Box::new(irql_rules::IrqlRules::new(tcx)));
         }));
     }
 }
