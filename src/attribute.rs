@@ -20,11 +20,24 @@ pub struct PreemptionCount {
     pub unchecked: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Encodable, Decodable, Clone, Copy)]
 pub struct Irql {
     pub on_call_requirement: Option<IrqlRange>,
     pub permanent_requirement: Option<IrqlRange>,
     pub on_return_value: Option<IrqlValue>,
+}
+
+impl Default for Irql {
+    fn default() -> Irql {
+        Irql {
+            on_call_requirement: Some(IrqlRange {
+                low: IrqlValue { value: 0 },
+                high: Some(IrqlValue { value: 31 }),
+            }),
+            permanent_requirement: None,
+            on_return_value: None,
+        }
+    }
 }
 
 #[derive(Debug)]
