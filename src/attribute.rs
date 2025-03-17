@@ -20,7 +20,7 @@ pub struct PreemptionCount {
     pub unchecked: bool,
 }
 
-#[derive(Debug, Encodable, Decodable, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Encodable, Decodable)]
 pub struct Irql {
     pub on_call_requirement: Option<IrqlRange>,
     pub permanent_requirement: Option<IrqlRange>,
@@ -299,16 +299,16 @@ impl AttrParser<'_> {
         if let Some(inclusive) = inclusive {
             cursor.next();
 
-            let skip_hi = match cursor.peek() {
+            let skip_hi = matches!(
+                cursor.peek(),
                 TokenTree::Token(
                     token::Token {
                         kind: token::TokenKind::Comma | token::TokenKind::Eof,
                         ..
                     },
                     _,
-                ) => true,
-                _ => false,
-            };
+                )
+            );
 
             if skip_hi {
                 end = None;
@@ -493,12 +493,12 @@ impl AttrParser<'_> {
         }
     }
 
-    fn parse_irql(&self, attr: &Attribute, item: &ast::AttrItem) -> Result<Irql, ErrorGuaranteed> {
+    fn parse_irql(&self, attr: &Attribute, item: &AttrItem) -> Result<Irql, ErrorGuaranteed> {
         let mut on_call_requirement = None;
         let mut permanent_requirement = None;
         let mut on_return_value = None;
 
-        let ast::AttrArgs::Delimited(ast::DelimArgs {
+        let AttrArgs::Delimited(DelimArgs {
             dspan: delim_span,
             tokens: tts,
             ..
@@ -509,7 +509,7 @@ impl AttrParser<'_> {
             })?;
         };
 
-        self.parse_comma_delimited(Cursor::new(tts.trees(), delim_span.close), |cursor| {
+        self.parse_comma_delimited(Cursor::new(tts.iter(), delim_span.close), |cursor| {
             self.parse_eq_delimited(
                 cursor,
                 |name| {
@@ -533,7 +533,7 @@ impl AttrParser<'_> {
                     match name.name {
                         v if v == *crate::symbol::require => {
                             if on_call_requirement.is_some() {
-                                self.error(item.args.span().unwrap(), |diag| {
+                                self.error(name.span, |diag| {
                                     diag.help("property is specified more than once");
                                 })?;
                             }
@@ -544,7 +544,7 @@ impl AttrParser<'_> {
                         }
                         v if v == *crate::symbol::always => {
                             if permanent_requirement.is_some() {
-                                self.error(item.args.span().unwrap(), |diag| {
+                                self.error(name.span, |diag| {
                                     diag.help("property is specified more than once");
                                 })?;
                             }
@@ -555,7 +555,7 @@ impl AttrParser<'_> {
                         }
                         v if v == *crate::symbol::raise => {
                             if on_return_value.is_some() {
-                                self.error(item.args.span().unwrap(), |diag| {
+                                self.error(name.span, |diag| {
                                     diag.help("property is specified more than once");
                                 })?;
                             }
@@ -576,7 +576,7 @@ impl AttrParser<'_> {
             && permanent_requirement.is_none()
             && on_return_value.is_none()
         {
-            self.error(item.args.span().unwrap(), |diag| {
+            self.error(delim_span.entire(), |diag| {
                 diag.help(
                     "at least one of `require`, `always`, or `raise` property must be specified",
                 );
@@ -584,188 +584,7 @@ impl AttrParser<'_> {
         }
 
         if on_call_requirement.is_some() && permanent_requirement.is_some() {
-            self.error(item.args.span().unwrap(), |diag| {
-                diag.help("`require` and `always` can't be used together");
-            })?;
-        }
-
-        Ok(Irql {
-            on_call_requirement,
-            permanent_requirement,
-            on_return_value,
-        })
-    }
-
-    fn parse_irql_value<'a>(
-        &self,
-        mut cursor: Cursor<'a>,
-    ) -> Result<(IrqlValue, Cursor<'a>), ErrorGuaranteed> {
-        let token = cursor.next();
-        let TokenTree::Token(
-            token::Token {
-                kind: token::TokenKind::Literal(lit),
-                ..
-            },
-            _,
-        ) = token
-        else {
-            self.error(token.span(), |diag| {
-                diag.help("expected an integer between 0 and 31");
-            })?;
-        };
-        if lit.kind != token::LitKind::Integer || lit.suffix.is_some() {
-            self.error(token.span(), |diag| {
-                diag.help("expected an integer between 0 and 31");
-            })?;
-        }
-        let Some(value) = lit.symbol.as_str().parse::<u32>().ok() else {
-            self.error(token.span(), |diag| {
-                diag.help("expected an integer between 0 and 31");
-            })?;
-        };
-        if value > 31 {
-            self.error(token.span(), |diag| {
-                diag.help("expected an integer between 0 and 31");
-            })?;
-        }
-
-        Ok((IrqlValue { value }, cursor))
-    }
-
-    fn parse_irql_range<'a>(
-        &self,
-        mut cursor: Cursor<'a>,
-    ) -> Result<(IrqlRange, Cursor<'a>), ErrorGuaranteed> {
-        let low;
-        (low, cursor) = self.parse_irql_value(cursor)?;
-
-        match cursor.look_ahead(0) {
-            TokenTree::Token(
-                token::Token {
-                    kind: token::TokenKind::DotDot,
-                    ..
-                },
-                _,
-            ) => {
-                cursor.next();
-
-                let high;
-                (high, cursor) = self.parse_irql_value(cursor)?;
-
-                if high <= low {
-                    self.error(cursor.next().span(), |diag| {
-                        diag.help("syntax is not a valid range");
-                    })?;
-                }
-
-                Ok((
-                    IrqlRange {
-                        low,
-                        high: Some(high),
-                    },
-                    cursor,
-                ))
-            }
-            _ => Ok((IrqlRange { low, high: None }, cursor)),
-        }
-    }
-
-    fn parse_irql(
-        &self,
-        attr: &ast::Attribute,
-        item: &ast::AttrItem,
-    ) -> Result<Irql, ErrorGuaranteed> {
-        let mut on_call_requirement = None;
-        let mut permanent_requirement = None;
-        let mut on_return_value = None;
-
-        let ast::AttrArgs::Delimited(ast::DelimArgs {
-            dspan: delim_span,
-            tokens: tts,
-            ..
-        }) = &item.args
-        else {
-            self.error(attr.span, |diag| {
-                diag.help("correct usage looks like `#[kint::irql(...)]`");
-            })?;
-        };
-
-        self.parse_comma_delimited(Cursor::new(tts.trees(), delim_span.close), |cursor| {
-            self.parse_eq_delimited(
-                cursor,
-                |name| {
-                    Ok(match name.name {
-                        v if (v == *crate::symbol::require
-                            || v == *crate::symbol::always
-                            || v == *crate::symbol::raise) =>
-                        {
-                            true
-                        }
-                        _ => {
-                            self.error(name.span, |diag| {
-                                diag.help(
-                                    "unknown property, expected `require`, `always` or `raise`",
-                                );
-                            })?;
-                        }
-                    })
-                },
-                |name, mut cursor| {
-                    match name.name {
-                        v if v == *crate::symbol::require => {
-                            if on_call_requirement.is_some() {
-                                self.error(item.args.span().unwrap(), |diag| {
-                                    diag.help("property is specified more than once");
-                                })?;
-                            }
-
-                            let range;
-                            (range, cursor) = self.parse_irql_range(cursor)?;
-                            on_call_requirement = Some(range);
-                        }
-                        v if v == *crate::symbol::always => {
-                            if permanent_requirement.is_some() {
-                                self.error(item.args.span().unwrap(), |diag| {
-                                    diag.help("property is specified more than once");
-                                })?;
-                            }
-
-                            let range;
-                            (range, cursor) = self.parse_irql_range(cursor)?;
-                            permanent_requirement = Some(range);
-                        }
-                        v if v == *crate::symbol::raise => {
-                            if on_return_value.is_some() {
-                                self.error(item.args.span().unwrap(), |diag| {
-                                    diag.help("property is specified more than once");
-                                })?;
-                            }
-
-                            let irql_value;
-                            (irql_value, cursor) = self.parse_irql_value(cursor)?;
-                            on_return_value = Some(irql_value);
-                        }
-                        _ => unreachable!(),
-                    }
-
-                    Ok(cursor)
-                },
-            )
-        })?;
-
-        if on_call_requirement.is_none()
-            && permanent_requirement.is_none()
-            && on_return_value.is_none()
-        {
-            self.error(item.args.span().unwrap(), |diag| {
-                diag.help(
-                    "at least one of `require`, `always`, or `raise` property must be specified",
-                );
-            })?;
-        }
-
-        if on_call_requirement.is_some() && permanent_requirement.is_some() {
-            self.error(item.args.span().unwrap(), |diag| {
+            self.error(delim_span.entire(), |diag| {
                 diag.help("`require` and `always` can't be used together");
             })?;
         }

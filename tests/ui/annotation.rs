@@ -51,3 +51,6 @@ fn t15() {}
 
 #[klint::irql(require = 5..1)]
 fn t16() {}
+
+#[klint::irql(require = 6, always = 6)]
+fn t17() {}

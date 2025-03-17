@@ -37,7 +37,6 @@ use rustc_driver::Callbacks;
 use rustc_interface::interface::Config;
 use rustc_session::config::ErrorOutputType;
 use rustc_session::EarlyDiagCtxt;
-use std::process::ExitCode;
 use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::Ordering;
 

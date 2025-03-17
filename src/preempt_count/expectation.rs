@@ -5,6 +5,7 @@
 use super::dataflow::AdjustmentComputation;
 use super::{AdjustmentBounds, Error, ExpectationRange, PolyDisplay, UseSite, UseSiteKind};
 use crate::ctxt::AnalysisCtxt;
+use crate::lattice::MeetSemiLattice;
 use rustc_errors::{EmissionGuarantee, MultiSpan};
 use rustc_hir::def_id::CrateNum;
 use rustc_hir::LangItem;
@@ -15,12 +16,6 @@ use rustc_middle::ty::{
 use rustc_mir_dataflow::Analysis;
 use rustc_span::DUMMY_SP;
 use rustc_trait_selection::infer::TyCtxtInferExt;
-// use rustc_mir_dataflow::lattice::MeetSemiLattice;
-
-use super::dataflow::AdjustmentComputation;
-use super::{AdjustmentBounds, Error, ExpectationRange, PolyDisplay, UseSite, UseSiteKind};
-use crate::ctxt::AnalysisCtxt;
-use crate::lattice::MeetSemiLattice;
 
 impl<'tcx> AnalysisCtxt<'tcx> {
     pub fn terminator_expectation(
