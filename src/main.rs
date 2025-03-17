@@ -48,6 +48,7 @@ mod attribute;
 mod infallible_allocation;
 mod irql;
 mod irql_rules;
+mod lattice;
 mod mir;
 mod monomorphize_collector;
 mod preempt_count;
@@ -99,13 +100,10 @@ impl Callbacks for MyCallbacks {
     }
 }
 
-fn main() -> ExitCode {
+fn main() {
     let handler = EarlyDiagCtxt::new(ErrorOutputType::default());
     rustc_driver::init_logger(&handler, rustc_log::LoggerConfig::from_env("KLINT_LOG"));
     let args: Vec<_> = std::env::args().collect();
 
-    match rustc_driver::RunCompiler::new(&args, &mut MyCallbacks).run() {
-        Ok(_) => ExitCode::SUCCESS,
-        Err(_) => ExitCode::FAILURE,
-    }
+    rustc_driver::RunCompiler::new(&args, &mut MyCallbacks).run();
 }
