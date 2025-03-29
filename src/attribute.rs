@@ -47,6 +47,7 @@ pub enum KlintAttribute {
     ReportPreeptionCount,
     DumpMir,
     Irql(Irql),
+    DropIrql(Irql),
 }
 
 struct Cursor<'a> {

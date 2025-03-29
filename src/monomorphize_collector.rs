@@ -55,7 +55,7 @@ fn custom_coerce_unsize_info<'tcx>(
             ..
         })) => Ok(tcx.coerce_unsized_info(impl_def_id)?.custom_kind.unwrap()),
         impl_source => {
-            bug!("invalid `CoerceUnsized` impl_source: {:?}", impl_source);
+            bug!("invalid `CoerceUnsized` impl_source: {:?}", impl_source)
         }
     }
 }

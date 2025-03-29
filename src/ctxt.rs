@@ -318,6 +318,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         ret.sql_create_table::<crate::preempt_count::expectation::instance_expectation>();
         ret.sql_create_table::<crate::mir::analysis_mir>();
         ret.sql_create_table::<crate::irql::annotation::irql_annotation>();
+        ret.sql_create_table::<crate::irql::annotation::drop_irql_annotation>();
         ret
     }
 }
