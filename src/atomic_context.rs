@@ -73,7 +73,10 @@ pub const VDROP_DEFAULT: (i32, ExpectationRange) = (0, ExpectationRange::single_
 pub const VCALL_DEFAULT: (i32, ExpectationRange) = (0, ExpectationRange::single_value(0));
 
 impl<'tcx> AnalysisCtxt<'tcx> {
-    pub fn ffi_property(&self, instance: Instance<'tcx>) -> Option<(i32, ExpectationRange)> {
+    pub fn atomic_context_ffi_property(
+        &self,
+        instance: Instance<'tcx>,
+    ) -> Option<(i32, ExpectationRange)> {
         const NO_ASSUMPTION: (i32, ExpectationRange) = (0, ExpectationRange::top());
         const MIGHT_SLEEP: (i32, ExpectationRange) = (0, ExpectationRange::single_value(0));
         const SPIN_LOCK: (i32, ExpectationRange) = (1, ExpectationRange::top());

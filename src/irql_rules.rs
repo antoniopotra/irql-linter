@@ -182,7 +182,6 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
         let instance = Instance::new(def_id.into(), identity);
         let poly_instance = TypingEnv::post_analysis(*self.cx, def_id).as_query_input(instance);
         let _ = self.cx.instance_on_call_requirement(poly_instance);
-        let _ = self.cx.instance_permanent_requirement(poly_instance);
         let _ = self.cx.instance_on_return_value(poly_instance);
     }
 
@@ -197,11 +196,6 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
             if let MonoItem::Fn(instance) = mono_item {
                 let poly_instance = TypingEnv::fully_monomorphized().as_query_input(instance);
                 if let Err(Error::TooGeneric) = self.cx.instance_on_call_requirement(poly_instance)
-                {
-                    bug!("monomorphized function should not be too generic");
-                }
-                if let Err(Error::TooGeneric) =
-                    self.cx.instance_permament_requirement(poly_instance)
                 {
                     bug!("monomorphized function should not be too generic");
                 }

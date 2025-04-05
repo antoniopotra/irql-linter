@@ -4,11 +4,11 @@ use rustc_span::sym;
 
 impl AnalysisCtxt<'_> {
     fn irql_annotation_fallback(&self, def_id: DefId) -> Irql {
-        Default::default()
+        Irql::default()
     }
 
     fn core_out_of_band_irql_annotation(&self, def_id: DefId) -> Irql {
-        Default::default()
+        Irql::default()
     }
 }
 
@@ -19,16 +19,16 @@ memoize!(
         }
 
         let Some(local_def_id) = def_id.as_local() else {
-            if let Some(v) = cx.sql_load::<irql_annotation>(def_id) {
-                return v;
+            if let Some(irql) = cx.sql_load::<irql_annotation>(def_id) {
+                return irql;
             }
             return cx.irql_annotation_fallback(def_id);
         };
 
         let hir_id = cx.local_def_id_to_hir_id(local_def_id);
         for attr in cx.klint_attributes(hir_id).iter() {
-            if let crate::attribute::KlintAttribute::Irql(pc) = attr {
-                return *pc;
+            if let crate::attribute::KlintAttribute::Irql(irql) = attr {
+                return *irql;
             }
         }
 
@@ -47,16 +47,16 @@ impl crate::ctxt::PersistentQuery for irql_annotation {
 memoize!(
     pub fn drop_irql_annotation<'tcx>(cx: &AnalysisCtxt<'tcx>, def_id: DefId) -> Irql {
         let Some(local_def_id) = def_id.as_local() else {
-            if let Some(v) = cx.sql_load::<drop_irql_annotation>(def_id) {
-                return v;
+            if let Some(irql) = cx.sql_load::<drop_irql_annotation>(def_id) {
+                return irql;
             }
             return cx.irql_annotation_fallback(def_id);
         };
 
         let hir_id = cx.local_def_id_to_hir_id(local_def_id);
         for attr in cx.klint_attributes(hir_id).iter() {
-            if let crate::attribute::KlintAttribute::DropIrql(pc) = attr {
-                return *pc;
+            if let crate::attribute::KlintAttribute::DropIrql(irql) = attr {
+                return *irql;
             }
         }
 

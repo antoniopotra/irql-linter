@@ -30,10 +30,7 @@ pub struct Irql {
 impl Default for Irql {
     fn default() -> Irql {
         Irql {
-            on_call_requirement: Some(IrqlRange {
-                low: IrqlValue { value: 0 },
-                high: Some(IrqlValue { value: 31 }),
-            }),
+            on_call_requirement: Some(IrqlRange::full()),
             permanent_requirement: None,
             on_return_value: None,
         }
