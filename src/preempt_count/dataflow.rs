@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{Error, UseSite, UseSiteKind};
 use crate::ctxt::AnalysisCtxt;
+use crate::error::Error;
+use crate::use_site::{UseSite, UseSiteKind};
 use rustc_middle::mir::{BasicBlock, Body, TerminatorEdges, TerminatorKind};
 use rustc_middle::ty::{self, Instance, TypingEnv};
 use rustc_mir_dataflow::JoinSemiLattice;

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::ctxt::AnalysisCtxt;
+use crate::error::Error;
 use crate::preempt_count::*;
 use rustc_hir::def_id::LocalDefId;
 use rustc_lint::{LateContext, LateLintPass};

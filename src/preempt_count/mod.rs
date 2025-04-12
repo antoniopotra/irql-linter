@@ -10,37 +10,6 @@ pub mod expectation;
 
 use self::dataflow::AdjustmentBounds;
 use crate::lattice::MeetSemiLattice;
-use rustc_errors::ErrorGuaranteed;
-use rustc_middle::ty::{Instance, PseudoCanonicalInput};
-use rustc_span::Span;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Encodable, Decodable)]
-pub enum Error {
-    TooGeneric,
-    Error(ErrorGuaranteed),
-}
-
-pub struct PolyDisplay<'a, 'tcx, T>(pub &'a PseudoCanonicalInput<'tcx, T>);
-
-impl<T> std::fmt::Display for PolyDisplay<'_, '_, T>
-where
-    T: std::fmt::Display + Copy,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let PseudoCanonicalInput { typing_env, value } = self.0;
-        write!(f, "{}", value)?;
-        if !typing_env.param_env.caller_bounds().is_empty() {
-            write!(f, " where ")?;
-            for (i, predicate) in typing_env.param_env.caller_bounds().iter().enumerate() {
-                if i > 0 {
-                    write!(f, ", ")?;
-                }
-                write!(f, "{}", predicate)?;
-            }
-        }
-        Ok(())
-    }
-}
 
 /// Range of preemption count that the function expects.
 ///
@@ -160,23 +129,4 @@ impl std::ops::Sub<AdjustmentBounds> for ExpectationRange {
             },
         }
     }
-}
-
-#[derive(Debug)]
-pub enum UseSiteKind {
-    Call(Span),
-    Drop {
-        /// Span that causes the drop.
-        drop_span: Span,
-        /// Span of the place being dropped.
-        place_span: Span,
-    },
-    PointerCoercion(Span),
-    Vtable(Span),
-}
-
-#[derive(Debug)]
-pub struct UseSite<'tcx> {
-    pub instance: PseudoCanonicalInput<'tcx, Instance<'tcx>>,
-    pub kind: UseSiteKind,
 }

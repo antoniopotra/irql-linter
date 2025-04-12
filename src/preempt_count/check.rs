@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use super::{Error, PolyDisplay, UseSite, UseSiteKind};
 use crate::ctxt::AnalysisCtxt;
+use crate::error::Error;
+use crate::poly_display::PolyDisplay;
+use crate::use_site::{UseSite, UseSiteKind};
 use rustc_hir::def_id::DefId;
 use rustc_hir::LangItem;
 use rustc_infer::traits::util::PredicateSet;
@@ -128,8 +130,10 @@ impl<'tcx> MirNeighborVisitor<'_, 'tcx, '_> {
 
         match *rvalue {
             mir::Rvalue::Cast(
-                mir::CastKind::PointerCoercion(PointerCoercion::Unsize, _)
-                | mir::CastKind::PointerCoercion(PointerCoercion::DynStar, _),
+                mir::CastKind::PointerCoercion(
+                    PointerCoercion::Unsize | PointerCoercion::DynStar,
+                    _,
+                ),
                 ref operand,
                 target_ty,
             ) => {

@@ -1,5 +1,5 @@
 use crate::ctxt::AnalysisCtxt;
-use crate::irql::Error;
+use crate::error::Error;
 use rustc_hir::def_id::LocalDefId;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::mir::mono::MonoItem;

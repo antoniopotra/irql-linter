@@ -9,12 +9,14 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-rusqlite = "0.32"
-home = "0.5"
+rusqlite = "0.34.0"
+home = "0.5.11"
 
 [dev-dependencies]
-compiletest_rs = { version = "0.11", features = [ "tmp" ] }
+compiletest_rs = { version = "0.11.2", features = ["tmp"] }
 
 [package.metadata.rust-analyzer]
 # This crate uses #![feature(rustc_private)]
 rustc_private = true
+
+[lints.clippy]

@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::dataflow::{AdjustmentBoundsOrError, AdjustmentComputation};
-use super::{Error, PolyDisplay, UseSiteKind};
 use crate::ctxt::AnalysisCtxt;
+use crate::error::Error;
+use crate::poly_display::PolyDisplay;
+use crate::use_site::UseSiteKind;
 use rustc_errors::{Diag, EmissionGuarantee, ErrorGuaranteed, MultiSpan};
 use rustc_hir::def_id::{CrateNum, DefId};
 use rustc_hir::LangItem;
@@ -503,10 +505,10 @@ memoize!(
             // Recursion encountered.
             if typing_env.param_env.caller_bounds().is_empty() {
                 return Ok(0);
-            } else {
-                // If we are handling generic functions, then defer decision to monomorphization time.
-                return Err(Error::TooGeneric);
             }
+
+            // If we are handling generic functions, then defer decision to monomorphization time.
+            return Err(Error::TooGeneric);
         }
 
         let mir = crate::mir::drop_shim::build_drop_shim(cx, instance.def_id(), typing_env, ty);
@@ -712,10 +714,10 @@ memoize!(
             // Recursion encountered.
             if typing_env.param_env.caller_bounds().is_empty() {
                 return Ok(0);
-            } else {
-                // If we are handling generic functions, then defer decision to monomorphization time.
-                return Err(Error::TooGeneric);
             }
+
+            // If we are handling generic functions, then defer decision to monomorphization time.
+            return Err(Error::TooGeneric);
         }
 
         let mir = cx.analysis_instance_mir(instance.def);

@@ -44,15 +44,18 @@ use std::sync::atomic::Ordering;
 mod ctxt;
 mod atomic_context;
 mod attribute;
+mod error;
 mod infallible_allocation;
 mod irql;
 mod irql_rules;
 mod lattice;
 mod mir;
 mod monomorphize_collector;
+mod poly_display;
 mod preempt_count;
 mod serde;
 mod symbol;
+mod use_site;
 mod util;
 
 rustc_session::declare_tool_lint! {

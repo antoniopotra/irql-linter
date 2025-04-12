@@ -3,11 +3,11 @@ use rustc_hir::def_id::{CrateNum, DefId, DefIndex};
 use rustc_span::sym;
 
 impl AnalysisCtxt<'_> {
-    fn irql_annotation_fallback(&self, def_id: DefId) -> Irql {
+    fn irql_annotation_fallback(&self, _: DefId) -> Irql {
         Irql::default()
     }
 
-    fn core_out_of_band_irql_annotation(&self, def_id: DefId) -> Irql {
+    fn core_out_of_band_irql_annotation(&self, _: DefId) -> Irql {
         Irql::default()
     }
 }
@@ -32,7 +32,7 @@ memoize!(
             }
         }
 
-        Default::default()
+        Irql::default()
     }
 );
 
@@ -60,7 +60,7 @@ memoize!(
             }
         }
 
-        Default::default()
+        Irql::default()
     }
 );
 

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::preempt_count::UseSite;
+use crate::use_site::UseSite;
 use rusqlite::{Connection, OptionalExtension};
 use rustc_data_structures::fx::FxHashMap;
 use rustc_data_structures::sync::Lrc;

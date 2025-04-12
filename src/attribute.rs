@@ -45,6 +45,7 @@ pub enum KlintAttribute {
     DumpMir,
     Irql(Irql),
     DropIrql(Irql),
+    ReportIrql,
 }
 
 struct Cursor<'a> {
@@ -622,6 +623,10 @@ impl AttrParser<'_> {
             v if v == *crate::symbol::irql => {
                 Some(KlintAttribute::Irql(self.parse_irql(attr, item).ok()?))
             }
+            v if v == *crate::symbol::drop_irql => {
+                Some(KlintAttribute::DropIrql(self.parse_irql(attr, item).ok()?))
+            }
+            v if v == *crate::symbol::report_irql => Some(KlintAttribute::ReportIrql),
             _ => {
                 self.tcx.node_span_lint(
                     crate::INCORRECT_ATTRIBUTE,

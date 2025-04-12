@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use super::dataflow::AdjustmentComputation;
-use super::{AdjustmentBounds, Error, ExpectationRange, PolyDisplay, UseSite, UseSiteKind};
+use super::{AdjustmentBounds, ExpectationRange};
 use crate::ctxt::AnalysisCtxt;
+use crate::error::Error;
 use crate::lattice::MeetSemiLattice;
+use crate::poly_display::PolyDisplay;
+use crate::use_site::{UseSite, UseSiteKind};
 use rustc_errors::{EmissionGuarantee, MultiSpan};
 use rustc_hir::def_id::CrateNum;
 use rustc_hir::LangItem;
@@ -149,45 +152,45 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                             );
                             diag.note(format!("but the callee expects preemption count {}", v));
                             return Ok(());
-                        } else {
-                            let callee_instance =
-                                ty::Instance::try_resolve(self.tcx, typing_env, def_id, args)
-                                    .unwrap()
-                                    .ok_or(Error::TooGeneric)?;
-
-                            if !span.has_primary_spans() {
-                                span = self.def_span(callee_instance.def_id()).into();
-                            }
-
-                            if let Some(v) = self
-                                .preemption_count_annotation(callee_instance.def_id())
-                                .expectation
-                            {
-                                diag.span_note(
-                                    span,
-                                    format!(
-                                        "which may call this function with preemption count {}",
-                                        expected
-                                    ),
-                                );
-                                diag.note(format!("but the callee expects preemption count {}", v));
-                                return Ok(());
-                            }
-
-                            self.call_stack.borrow_mut().push(UseSite {
-                                instance: typing_env.as_query_input(instance),
-                                kind: UseSiteKind::Call(span.primary_span().unwrap_or(DUMMY_SP)),
-                            });
-                            let result = self.report_instance_expectation_error(
-                                typing_env,
-                                callee_instance,
-                                call_expected,
-                                span,
-                                diag,
-                            );
-                            self.call_stack.borrow_mut().pop();
-                            result?
                         }
+
+                        let callee_instance =
+                            ty::Instance::try_resolve(self.tcx, typing_env, def_id, args)
+                                .unwrap()
+                                .ok_or(Error::TooGeneric)?;
+
+                        if !span.has_primary_spans() {
+                            span = self.def_span(callee_instance.def_id()).into();
+                        }
+
+                        if let Some(v) = self
+                            .preemption_count_annotation(callee_instance.def_id())
+                            .expectation
+                        {
+                            diag.span_note(
+                                span,
+                                format!(
+                                    "which may call this function with preemption count {}",
+                                    expected
+                                ),
+                            );
+                            diag.note(format!("but the callee expects preemption count {}", v));
+                            return Ok(());
+                        }
+
+                        self.call_stack.borrow_mut().push(UseSite {
+                            instance: typing_env.as_query_input(instance),
+                            kind: UseSiteKind::Call(span.primary_span().unwrap_or(DUMMY_SP)),
+                        });
+                        let result = self.report_instance_expectation_error(
+                            typing_env,
+                            callee_instance,
+                            call_expected,
+                            span,
+                            diag,
+                        );
+                        self.call_stack.borrow_mut().pop();
+                        result?
                     } else {
                         diag.span_note(
                             span,
@@ -836,10 +839,10 @@ memoize!(
             // Recursion encountered.
             if typing_env.param_env.caller_bounds().is_empty() {
                 return Ok(ExpectationRange::top());
-            } else {
-                // If we are handling generic functions, then defer decision to monomorphization time.
-                return Err(Error::TooGeneric);
             }
+
+            // If we are handling generic functions, then defer decision to monomorphization time.
+            return Err(Error::TooGeneric);
         }
 
         let mir = crate::mir::drop_shim::build_drop_shim(cx, instance.def_id(), typing_env, ty);
@@ -1054,10 +1057,10 @@ memoize!(
             // Recursion encountered.
             if typing_env.param_env.caller_bounds().is_empty() {
                 return Ok(ExpectationRange::top());
-            } else {
-                // If we are handling generic functions, then defer decision to monomorphization time.
-                return Err(Error::TooGeneric);
             }
+
+            // If we are handling generic functions, then defer decision to monomorphization time.
+            return Err(Error::TooGeneric);
         }
 
         let mir = cx.analysis_instance_mir(instance.def);

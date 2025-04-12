@@ -30,6 +30,8 @@ def! {
     wake,
     wake_by_ref,
     irql,
+    drop_irql,
+    report_irql,
     require,
     always,
     raise,
