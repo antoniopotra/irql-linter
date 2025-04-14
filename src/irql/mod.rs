@@ -1,6 +1,6 @@
 pub mod annotation;
-pub mod on_call_requirement;
-pub mod on_return_value;
+pub mod change;
+pub mod requirement;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Encodable, Decodable, Clone, Copy)]
 pub struct IrqlValue {
@@ -30,4 +30,10 @@ impl IrqlRange {
             high: Some(IrqlValue::maximum()),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Encodable, Decodable)]
+pub enum IrqlRequirement {
+    Call(IrqlRange),
+    Permanent(IrqlRange),
 }

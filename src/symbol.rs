@@ -34,5 +34,5 @@ def! {
     report_irql,
     require,
     always,
-    raise,
+    change,
 }

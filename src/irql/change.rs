@@ -6,7 +6,7 @@ use rustc_middle::ty::PseudoCanonicalInput;
 
 memoize!(
     #[instrument(skip(_cx), fields(poly_instance = %PolyDisplay(&poly_instance)), ret)]
-    pub fn instance_on_return_value<'tcx>(
+    pub fn instance_change<'tcx>(
         _cx: &AnalysisCtxt<'tcx>,
         poly_instance: PseudoCanonicalInput<'tcx, Instance<'tcx>>,
     ) -> Result<IrqlValue, Error> {

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::irql::{IrqlRange, IrqlValue};
+use crate::irql::{IrqlRange, IrqlRequirement, IrqlValue};
 use crate::preempt_count::ExpectationRange;
 use rustc_ast::tokenstream::{self, TokenTree};
 use rustc_ast::{token, DelimArgs};
@@ -22,17 +22,15 @@ pub struct PreemptionCount {
 
 #[derive(Debug, Clone, Copy, Encodable, Decodable)]
 pub struct Irql {
-    pub on_call_requirement: Option<IrqlRange>,
-    pub permanent_requirement: Option<IrqlRange>,
-    pub on_return_value: Option<IrqlValue>,
+    pub requirement: Option<IrqlRequirement>,
+    pub change: Option<IrqlValue>,
 }
 
 impl Default for Irql {
     fn default() -> Irql {
         Irql {
-            on_call_requirement: Some(IrqlRange::full()),
-            permanent_requirement: None,
-            on_return_value: None,
+            requirement: Some(IrqlRequirement::Call(IrqlRange::full())),
+            change: None,
         }
     }
 }
@@ -493,9 +491,8 @@ impl AttrParser<'_> {
     }
 
     fn parse_irql(&self, attr: &Attribute, item: &AttrItem) -> Result<Irql, ErrorGuaranteed> {
-        let mut on_call_requirement = None;
-        let mut permanent_requirement = None;
-        let mut on_return_value = None;
+        let mut requirement = None;
+        let mut change = None;
 
         let AttrArgs::Delimited(DelimArgs {
             dspan: delim_span,
@@ -515,14 +512,14 @@ impl AttrParser<'_> {
                     Ok(match name.name {
                         v if (v == *crate::symbol::require
                             || v == *crate::symbol::always
-                            || v == *crate::symbol::raise) =>
+                            || v == *crate::symbol::change) =>
                         {
                             true
                         }
                         _ => {
                             self.error(name.span, |diag| {
                                 diag.help(
-                                    "unknown property, expected `require`, `always` or `raise`",
+                                    "unknown property, expected `require`, `always` or `change`",
                                 );
                             })?;
                         }
@@ -531,37 +528,37 @@ impl AttrParser<'_> {
                 |name, mut cursor| {
                     match name.name {
                         v if v == *crate::symbol::require => {
-                            if on_call_requirement.is_some() {
+                            if requirement.is_some() {
                                 self.error(name.span, |diag| {
-                                    diag.help("property is specified more than once");
+                                    diag.help("requirement property is specified more than once");
                                 })?;
                             }
 
                             let range;
                             (range, cursor) = self.parse_irql_range(cursor)?;
-                            on_call_requirement = Some(range);
+                            requirement = Some(IrqlRequirement::Call(range));
                         }
                         v if v == *crate::symbol::always => {
-                            if permanent_requirement.is_some() {
+                            if requirement.is_some() {
                                 self.error(name.span, |diag| {
-                                    diag.help("property is specified more than once");
+                                    diag.help("requirement property is specified more than once");
                                 })?;
                             }
 
                             let range;
                             (range, cursor) = self.parse_irql_range(cursor)?;
-                            permanent_requirement = Some(range);
+                            requirement = Some(IrqlRequirement::Permanent(range));
                         }
-                        v if v == *crate::symbol::raise => {
-                            if on_return_value.is_some() {
+                        v if v == *crate::symbol::change => {
+                            if change.is_some() {
                                 self.error(name.span, |diag| {
-                                    diag.help("property is specified more than once");
+                                    diag.help("change property is specified more than once");
                                 })?;
                             }
 
-                            let irql_value;
-                            (irql_value, cursor) = self.parse_irql_value(cursor)?;
-                            on_return_value = Some(irql_value);
+                            let value;
+                            (value, cursor) = self.parse_irql_value(cursor)?;
+                            change = Some(value);
                         }
                         _ => unreachable!(),
                     }
@@ -571,27 +568,17 @@ impl AttrParser<'_> {
             )
         })?;
 
-        if on_call_requirement.is_none()
-            && permanent_requirement.is_none()
-            && on_return_value.is_none()
-        {
+        if requirement.is_none() && change.is_none() {
             self.error(delim_span.entire(), |diag| {
                 diag.help(
-                    "at least one of `require`, `always`, or `raise` property must be specified",
+                    "at least one of `require`, `always`, or `change` property must be specified",
                 );
             })?;
         }
 
-        if on_call_requirement.is_some() && permanent_requirement.is_some() {
-            self.error(delim_span.entire(), |diag| {
-                diag.help("`require` and `always` can't be used together");
-            })?;
-        }
-
         Ok(Irql {
-            on_call_requirement,
-            permanent_requirement,
-            on_return_value,
+            requirement,
+            change,
         })
     }
 

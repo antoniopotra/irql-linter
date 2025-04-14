@@ -53,7 +53,7 @@ error: incorrect usage of klint attributes
 28 | #[klint::irql()]
    |              ^^
    |
-   = help: at least one of `require`, `always`, or `raise` property must be specified
+   = help: at least one of `require`, `always`, or `change` property must be specified
 
 error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:31:22

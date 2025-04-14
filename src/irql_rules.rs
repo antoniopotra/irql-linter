@@ -1,5 +1,6 @@
 use crate::ctxt::AnalysisCtxt;
 use crate::error::Error;
+use crate::irql::IrqlRequirement;
 use rustc_hir::def_id::LocalDefId;
 use rustc_lint::{LateContext, LateLintPass};
 use rustc_middle::mir::mono::MonoItem;
@@ -149,15 +150,15 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
         let function_irql = self.cx.irql_annotation(function_def_id);
         let caller_irql = self.cx.irql_annotation(caller_def_id);
 
-        if let Some(on_return_value) = function_irql.on_return_value
-            && let Some(permanent_requirement) = caller_irql.permanent_requirement
+        if let Some(change) = function_irql.change
+            && let Some(IrqlRequirement::Permanent(requirement)) = caller_irql.requirement
         {
-            if let Some(high) = permanent_requirement.high {
-                if on_return_value < permanent_requirement.low || on_return_value > high {
-                    println!("Function which raises IRQL to {} called from function with permanent requirement in interval {} to {}", on_return_value.value, permanent_requirement.low.value, high.value);
+            if let Some(high) = requirement.high {
+                if change < requirement.low || change > high {
+                    println!("Function which changes IRQL to {} called from function with permanent requirement in interval {} to {}", change.value, requirement.low.value, high.value);
                 }
-            } else if on_return_value != permanent_requirement.low {
-                println!("Function which raises IRQL to {} called from function with permanent requirement {}", on_return_value.value, permanent_requirement.low.value);
+            } else if change != requirement.low {
+                println!("Function which changes IRQL to {} called from function with permanent requirement {}", change.value, requirement.low.value);
             }
         }
     }
@@ -181,8 +182,8 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
             .erase_regions(GenericArgs::identity_for_item(self.cx.tcx, def_id));
         let instance = Instance::new(def_id.into(), identity);
         let poly_instance = TypingEnv::post_analysis(*self.cx, def_id).as_query_input(instance);
-        let _ = self.cx.instance_on_call_requirement(poly_instance);
-        let _ = self.cx.instance_on_return_value(poly_instance);
+        let _ = self.cx.instance_requirement(poly_instance);
+        let _ = self.cx.instance_change(poly_instance);
     }
 
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
@@ -195,11 +196,10 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
         for mono_item in mono_items {
             if let MonoItem::Fn(instance) = mono_item {
                 let poly_instance = TypingEnv::fully_monomorphized().as_query_input(instance);
-                if let Err(Error::TooGeneric) = self.cx.instance_on_call_requirement(poly_instance)
-                {
+                if let Err(Error::TooGeneric) = self.cx.instance_requirement(poly_instance) {
                     bug!("monomorphized function should not be too generic");
                 }
-                if let Err(Error::TooGeneric) = self.cx.instance_on_return_value(poly_instance) {
+                if let Err(Error::TooGeneric) = self.cx.instance_change(poly_instance) {
                     bug!("monomorphized function should not be too generic");
                 }
             }
