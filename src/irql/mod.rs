@@ -1,5 +1,6 @@
 pub mod annotation;
-pub mod change;
+pub mod dataflow;
+pub mod raise;
 pub mod requirement;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Encodable, Decodable, Clone, Copy)]
@@ -8,26 +9,34 @@ pub struct IrqlValue {
 }
 
 impl IrqlValue {
-    fn minimum() -> IrqlValue {
+    fn passive_level() -> IrqlValue {
         IrqlValue { value: 0 }
     }
 
-    fn maximum() -> IrqlValue {
+    fn apc_level() -> IrqlValue {
+        IrqlValue { value: 1 }
+    }
+
+    fn dispatch_level() -> IrqlValue {
+        IrqlValue { value: 2 }
+    }
+
+    fn high_level() -> IrqlValue {
         IrqlValue { value: 31 }
     }
 }
 
-#[derive(Debug, Encodable, Decodable, Clone, Copy)]
+#[derive(Debug, Encodable, Decodable, Clone, Copy, PartialEq, Eq)]
 pub struct IrqlRange {
     pub low: IrqlValue,
     pub high: Option<IrqlValue>,
 }
 
 impl IrqlRange {
-    pub fn full() -> IrqlRange {
+    pub fn unbounded() -> IrqlRange {
         IrqlRange {
-            low: IrqlValue::minimum(),
-            high: Some(IrqlValue::maximum()),
+            low: IrqlValue::passive_level(),
+            high: Some(IrqlValue::high_level()),
         }
     }
 }

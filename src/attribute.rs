@@ -23,16 +23,7 @@ pub struct PreemptionCount {
 #[derive(Debug, Clone, Copy, Encodable, Decodable)]
 pub struct Irql {
     pub requirement: Option<IrqlRequirement>,
-    pub change: Option<IrqlValue>,
-}
-
-impl Default for Irql {
-    fn default() -> Irql {
-        Irql {
-            requirement: Some(IrqlRequirement::Call(IrqlRange::full())),
-            change: None,
-        }
-    }
+    pub raise: Option<IrqlValue>,
 }
 
 #[derive(Debug)]
@@ -492,7 +483,7 @@ impl AttrParser<'_> {
 
     fn parse_irql(&self, attr: &Attribute, item: &AttrItem) -> Result<Irql, ErrorGuaranteed> {
         let mut requirement = None;
-        let mut change = None;
+        let mut raise = None;
 
         let AttrArgs::Delimited(DelimArgs {
             dspan: delim_span,
@@ -511,15 +502,15 @@ impl AttrParser<'_> {
                 |name| {
                     Ok(match name.name {
                         v if (v == *crate::symbol::require
-                            || v == *crate::symbol::always
-                            || v == *crate::symbol::change) =>
+                            || v == *crate::symbol::always_require
+                            || v == *crate::symbol::raise) =>
                         {
                             true
                         }
                         _ => {
                             self.error(name.span, |diag| {
                                 diag.help(
-                                    "unknown property, expected `require`, `always` or `change`",
+                                    "unknown property, expected `require`, `always_require` or `raise`",
                                 );
                             })?;
                         }
@@ -530,7 +521,7 @@ impl AttrParser<'_> {
                         v if v == *crate::symbol::require => {
                             if requirement.is_some() {
                                 self.error(name.span, |diag| {
-                                    diag.help("requirement property is specified more than once");
+                                    diag.help("more than one requirement property specified");
                                 })?;
                             }
 
@@ -538,10 +529,10 @@ impl AttrParser<'_> {
                             (range, cursor) = self.parse_irql_range(cursor)?;
                             requirement = Some(IrqlRequirement::Call(range));
                         }
-                        v if v == *crate::symbol::always => {
+                        v if v == *crate::symbol::always_require => {
                             if requirement.is_some() {
                                 self.error(name.span, |diag| {
-                                    diag.help("requirement property is specified more than once");
+                                    diag.help("more than one requirement property specified");
                                 })?;
                             }
 
@@ -549,16 +540,16 @@ impl AttrParser<'_> {
                             (range, cursor) = self.parse_irql_range(cursor)?;
                             requirement = Some(IrqlRequirement::Permanent(range));
                         }
-                        v if v == *crate::symbol::change => {
-                            if change.is_some() {
+                        v if v == *crate::symbol::raise => {
+                            if raise.is_some() {
                                 self.error(name.span, |diag| {
-                                    diag.help("change property is specified more than once");
+                                    diag.help("more than one `raise` property specified");
                                 })?;
                             }
 
                             let value;
                             (value, cursor) = self.parse_irql_value(cursor)?;
-                            change = Some(value);
+                            raise = Some(value);
                         }
                         _ => unreachable!(),
                     }
@@ -568,18 +559,15 @@ impl AttrParser<'_> {
             )
         })?;
 
-        if requirement.is_none() && change.is_none() {
+        if requirement.is_none() && raise.is_none() {
             self.error(delim_span.entire(), |diag| {
                 diag.help(
-                    "at least one of `require`, `always`, or `change` property must be specified",
+                    "at least one of `require`, `always_require` or `raise` property must be specified",
                 );
             })?;
         }
 
-        Ok(Irql {
-            requirement,
-            change,
-        })
+        Ok(Irql { requirement, raise })
     }
 
     fn parse(&self, attr: &Attribute) -> Option<KlintAttribute> {

@@ -120,12 +120,12 @@ error: incorrect usage of klint attributes
    = help: syntax is not a valid range
 
 error: incorrect usage of klint attributes
-  --> $DIR/annotation.rs:55:14
+  --> $DIR/annotation.rs:55:28
    |
 55 | #[klint::irql(require = 6, always = 6)]
-   |              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                            ^^^^^^
    |
-   = help: `require` and `always` can't be used together
+   = help: requirement property is specified more than once
 
 error: aborting due to 16 previous errors
 

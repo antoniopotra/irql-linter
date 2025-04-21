@@ -33,6 +33,6 @@ def! {
     drop_irql,
     report_irql,
     require,
-    always,
-    change,
+    always_require,
+    raise,
 }

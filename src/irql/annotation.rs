@@ -1,14 +1,21 @@
+use super::{IrqlRange, IrqlRequirement};
 use crate::{attribute::Irql, ctxt::AnalysisCtxt};
 use rustc_hir::def_id::{CrateNum, DefId, DefIndex};
 use rustc_span::sym;
 
 impl AnalysisCtxt<'_> {
     fn irql_annotation_fallback(&self, _: DefId) -> Irql {
-        Irql::default()
+        Irql {
+            requirement: Some(IrqlRequirement::Call(IrqlRange::unbounded())),
+            raise: None,
+        }
     }
 
     fn core_out_of_band_irql_annotation(&self, _: DefId) -> Irql {
-        Irql::default()
+        Irql {
+            requirement: Some(IrqlRequirement::Call(IrqlRange::unbounded())),
+            raise: None,
+        }
     }
 }
 
@@ -32,7 +39,10 @@ memoize!(
             }
         }
 
-        Irql::default()
+        Irql {
+            requirement: Some(IrqlRequirement::Call(IrqlRange::unbounded())),
+            raise: None,
+        }
     }
 );
 
@@ -60,7 +70,10 @@ memoize!(
             }
         }
 
-        Irql::default()
+        Irql {
+            requirement: Some(IrqlRequirement::Call(IrqlRange::unbounded())),
+            raise: None,
+        }
     }
 );
 

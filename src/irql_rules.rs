@@ -150,16 +150,19 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
         let function_irql = self.cx.irql_annotation(function_def_id);
         let caller_irql = self.cx.irql_annotation(caller_def_id);
 
-        if let Some(change) = function_irql.change
-            && let Some(IrqlRequirement::Permanent(requirement)) = caller_irql.requirement
-        {
-            if let Some(high) = requirement.high {
-                if change < requirement.low || change > high {
-                    println!("Function which changes IRQL to {} called from function with permanent requirement in interval {} to {}", change.value, requirement.low.value, high.value);
-                }
-            } else if change != requirement.low {
-                println!("Function which changes IRQL to {} called from function with permanent requirement {}", change.value, requirement.low.value);
+        let Some(raise) = function_irql.raise else {
+            return;
+        };
+        let Some(IrqlRequirement::Permanent(requirement)) = caller_irql.requirement else {
+            return;
+        };
+
+        if let Some(high) = requirement.high {
+            if raise < requirement.low || raise > high {
+                println!("Function which raises IRQL to {} called from function with permanent requirement in interval {} to {}", raise.value, requirement.low.value, high.value);
             }
+        } else if raise != requirement.low {
+            println!("Function which raises IRQL to {} called from function with permanent requirement {}", raise.value, requirement.low.value);
         }
     }
 
@@ -183,7 +186,7 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
         let instance = Instance::new(def_id.into(), identity);
         let poly_instance = TypingEnv::post_analysis(*self.cx, def_id).as_query_input(instance);
         let _ = self.cx.instance_requirement(poly_instance);
-        let _ = self.cx.instance_change(poly_instance);
+        let _ = self.cx.instance_raise(poly_instance);
     }
 
     fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
@@ -199,7 +202,7 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
                 if let Err(Error::TooGeneric) = self.cx.instance_requirement(poly_instance) {
                     bug!("monomorphized function should not be too generic");
                 }
-                if let Err(Error::TooGeneric) = self.cx.instance_change(poly_instance) {
+                if let Err(Error::TooGeneric) = self.cx.instance_raise(poly_instance) {
                     bug!("monomorphized function should not be too generic");
                 }
             }
