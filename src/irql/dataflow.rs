@@ -1,35 +1,33 @@
 use super::{IrqlRequirement, IrqlValue};
-use crate::ctxt::AnalysisCtxt;
-use crate::error::Error;
-use crate::use_site::{UseSite, UseSiteKind};
+use rustc_middle::mir::interpret::Scalar;
 use rustc_middle::mir::{
-    BasicBlock, Body, Location, Statement, Terminator, TerminatorEdges, TerminatorKind,
+    BasicBlock, Body, Const, ConstOperand, ConstValue, Location, Operand, Statement, Terminator,
+    TerminatorEdges,
 };
 use rustc_middle::ty::{self, Instance, TypingEnv};
-use rustc_mir_dataflow::JoinSemiLattice;
-use rustc_mir_dataflow::{fmt::DebugWithContext, Analysis};
+use rustc_mir_dataflow::{Analysis, JoinSemiLattice};
+use rustc_span::source_map::Spanned;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IrqlState {
     pub current: IrqlValue,
     pub stack: Vec<IrqlValue>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IrqlStateOrError {
     Ok(IrqlState),
     Error,
 }
 
 impl JoinSemiLattice for IrqlStateOrError {
-    fn join(&mut self, other: &Self) -> bool {
-        match (self, other) {
+    fn join(&mut self, other: &IrqlStateOrError) -> bool {
+        match (&self, other) {
             (IrqlStateOrError::Error, _) | (_, IrqlStateOrError::Error) => {
                 *self = IrqlStateOrError::Error;
                 true
             }
             (IrqlStateOrError::Ok(a), IrqlStateOrError::Ok(b)) => {
-                // Conservative join: if current IRQL differs, mark error
                 if a.current != b.current {
                     *self = IrqlStateOrError::Error;
                     true
@@ -75,7 +73,7 @@ impl<'tcx> Analysis<'tcx> for IrqlTrackingAnalysis<'_, 'tcx, '_> {
         &mut self,
         state: &mut Self::Domain,
         terminator: &'mir Terminator<'tcx>,
-        location: Location,
+        _location: Location,
     ) -> TerminatorEdges<'mir, 'tcx> {
         use rustc_middle::mir::TerminatorKind::*;
 
@@ -83,64 +81,99 @@ impl<'tcx> Analysis<'tcx> for IrqlTrackingAnalysis<'_, 'tcx, '_> {
             return terminator.edges();
         };
 
-        match &terminator.kind {
-            Call { func, args, .. } => {
-                let function_ty = func.ty(self.body, self.checker.tcx);
-                let callee_ty = self.instance.instantiate_mir_and_normalize_erasing_regions(
-                    self.checker.tcx,
-                    self.typing_env,
-                    ty::EarlyBinder::bind(function_ty),
-                );
+        if let Call { func, args, .. } = &terminator.kind {
+            let function_ty = func.ty(self.body, self.checker.tcx);
+            let function_ty = self.instance.instantiate_mir_and_normalize_erasing_regions(
+                self.checker.tcx,
+                self.typing_env,
+                ty::EarlyBinder::bind(function_ty),
+            );
 
-                if let ty::FnDef(def_id, substs) = *callee_ty.kind() {
-                    let annotation = self.checker.irql_annotation(def_id);
+            if let ty::FnDef(def_id, _) = *function_ty.kind() {
+                let annotation = self.checker.irql_annotation(def_id);
 
-                    // Check require
-                    if let Some(IrqlRequirement::Call(req_range)) = annotation.requirement {
-                        if irql.current < req_range.low
-                            || req_range.high.map_or(false, |h| irql.current > h)
-                        {
-                            *state = IrqlStateOrError::Error;
-                            return terminator.edges();
-                        }
+                if annotation.requirement.is_some() {
+                    let requirement = match annotation.requirement.unwrap() {
+                        IrqlRequirement::Call(requirement) => requirement,
+                        IrqlRequirement::Permanent(requirement) => requirement,
+                    };
+                    if irql.current < requirement.low
+                        || requirement.high.is_some_and(|h| irql.current > h)
+                    {
+                        *state = IrqlStateOrError::Error;
+                        return terminator.edges();
                     }
+                }
 
-                    // Raise
-                    if let Some(new_level) = annotation.raise {
+                if let Some(new_level) = annotation.raise {
+                    irql.stack.push(irql.current);
+                    irql.current = new_level;
+                }
+
+                if self.checker.tcx.item_name(def_id).as_str() == "KeRaiseIrql" {
+                    if let Some(raises) = extract_irql_from_args(args) {
                         irql.stack.push(irql.current);
-                        irql.current = new_level;
+                        irql.current = raises;
                     }
+                }
 
-                    // KeRaiseIrql
-                    if self.checker.is_special_function(def_id, "KeRaiseIrql") {
-                        if let Some(raise_to) = extract_irql_from_args(args) {
-                            irql.stack.push(irql.current);
-                            irql.current = raise_to;
-                        }
+                if self.checker.tcx.item_name(def_id).as_str() == "KeLowerIrql" {
+                    if irql.stack.is_empty() {
+                        *state = IrqlStateOrError::Error;
+                        return terminator.edges();
                     }
+                    let expected = irql.stack.pop().unwrap();
 
-                    // KeLowerIrql
-                    if self.checker.is_special_function(def_id, "KeLowerIrql") {
-                        if irql.stack.is_empty() {
+                    if let Some(lower) = extract_irql_from_args(args) {
+                        if lower != expected {
                             *state = IrqlStateOrError::Error;
                             return terminator.edges();
                         }
-                        let expected = irql.stack.pop().unwrap();
-
-                        if let Some(lower) = extract_irql_from_args(args) {
-                            if lower != expected {
-                                *state = IrqlStateOrError::Error;
-                                return terminator.edges();
-                            }
-                            irql.current = lower;
-                        }
+                        irql.current = lower;
                     }
                 }
             }
-
-            _ => {}
         }
 
         terminator.edges()
     }
+
+    fn apply_call_return_effect(
+        &mut self,
+        state: &mut Self::Domain,
+        _block: BasicBlock,
+        _return_places: rustc_middle::mir::CallReturnPlaces<'_, 'tcx>,
+    ) {
+        let IrqlStateOrError::Ok(state) = state else {
+            return;
+        };
+
+        if !state.stack.is_empty()
+            && self
+                .checker
+                .irql_annotation(self.instance.def_id())
+                .raise
+                .is_none()
+        {
+            println!("Function raises IRQL but does not lower it. Consider lowering the IRQL or adding an explicit `raise` annotation.");
+        }
+    }
+}
+
+fn extract_irql_from_args(args: &[Spanned<Operand<'_>>]) -> Option<IrqlValue> {
+    let Spanned {
+        node:
+            Operand::Constant(box ConstOperand {
+                const_: Const::Val(ConstValue::Scalar(Scalar::Int(scalar_int)), _),
+                ..
+            }),
+        ..
+    } = args[0]
+    else {
+        return None;
+    };
+
+    Some(IrqlValue {
+        value: scalar_int.to_u32(),
+    })
 }

@@ -53,7 +53,7 @@ error: incorrect usage of klint attributes
 28 | #[klint::irql()]
    |              ^^
    |
-   = help: at least one of `require`, `always`, or `change` property must be specified
+   = help: at least one of `require`, `always_require` or `raise` property must be specified
 
 error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:31:22
@@ -122,10 +122,10 @@ error: incorrect usage of klint attributes
 error: incorrect usage of klint attributes
   --> $DIR/annotation.rs:55:28
    |
-55 | #[klint::irql(require = 6, always = 6)]
-   |                            ^^^^^^
+55 | #[klint::irql(require = 6, always_require = 6)]
+   |                            ^^^^^^^^^^^^^^
    |
-   = help: requirement property is specified more than once
+   = help: more than one requirement property specified
 
 error: aborting due to 16 previous errors
 
