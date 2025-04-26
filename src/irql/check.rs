@@ -1,0 +1,144 @@
+use super::dataflow::{IrqlComputation, IrqlStateOrError};
+use crate::ctxt::AnalysisCtxt;
+use crate::error::Error;
+use rustc_middle::mir::{Body, TerminatorKind};
+use rustc_middle::ty::{EarlyBinder, FnDef, Instance, TypingEnv};
+use rustc_mir_dataflow::Analysis;
+
+impl<'tcx> AnalysisCtxt<'tcx> {
+    pub fn check_irql(
+        &self,
+        typing_env: TypingEnv<'tcx>,
+        instance: Instance<'tcx>,
+        body: &Body<'tcx>,
+    ) {
+        let mut irql_computation = IrqlComputation {
+            checker: self,
+            body,
+            typing_env,
+            instance,
+        }
+        .iterate_to_fixpoint(self.tcx, body, None)
+        .into_results_cursor(body);
+
+        for (bb, block_data) in rustc_middle::mir::traversal::reachable(body) {
+            if block_data.is_cleanup {
+                continue;
+            }
+
+            irql_computation.seek_to_block_start(bb);
+            let irql_state_or_error = irql_computation.get();
+
+            match irql_state_or_error {
+                IrqlStateOrError::Error(error) => match error {
+                    Error::IrqlLoweringMismatch {
+                        expected,
+                        actual,
+                        span,
+                    } => {
+                        let mut diag = self.dcx().struct_err("IRQl error");
+                        diag.span_note(
+                            *span,
+                            format!(
+                                "KeLowerIrql lowered IRQL to {}, but expected {}",
+                                actual.value, expected.value
+                            ),
+                        );
+                        diag.help("Ensure you lower to the original IRQL level before the raise.");
+                        diag.emit();
+                    }
+                    Error::IrqlStackUnderflow { span } => {
+                        let mut diag = self.dcx().struct_err("IRQl error");
+                        diag.span_note(
+                            *span,
+                            "KeLowerIrql called but there was no previous raise.",
+                        );
+                        diag.help("Ensure you raise IRQL before lowering.");
+                        diag.emit();
+                    }
+                    _ => {}
+                },
+                IrqlStateOrError::IrqlState(irql_state) => {
+                    let terminator = block_data.terminator();
+                    let TerminatorKind::Call { func, .. } = &terminator.kind else {
+                        continue;
+                    };
+
+                    let function_ty = func.ty(body, self.tcx);
+                    let function_ty = instance.instantiate_mir_and_normalize_erasing_regions(
+                        self.tcx,
+                        typing_env,
+                        EarlyBinder::bind(function_ty),
+                    );
+
+                    let FnDef(def_id, _) = *function_ty.kind() else {
+                        continue;
+                    };
+
+                    let Some(range) = self
+                        .irql_annotation(def_id)
+                        .requirement
+                        .map(|requirement| requirement.range())
+                    else {
+                        continue;
+                    };
+
+                    if irql_state.current < range.low
+                        || range.high.is_some_and(|h| irql_state.current > h)
+                    {
+                        let span = terminator.source_info.span;
+                        let mut diag = self.dcx().struct_err("IRQl error");
+                        diag.span_note(
+                            span,
+                            format!(
+                                "IRQL is {} when calling `{}`, but it requires {:?}",
+                                irql_state.current.value,
+                                self.tcx.item_name(def_id),
+                                range
+                            ),
+                        );
+                        diag.help("Ensure IRQL is raised to the correct level before this call.");
+                        diag.emit();
+                    }
+                }
+            }
+        }
+
+        // Final return block state
+        irql_computation.seek_to_block_start(body.basic_blocks.last_index().unwrap());
+        let IrqlStateOrError::IrqlState(final_state) = irql_computation.get() else {
+            return;
+        };
+
+        let annotation = self.irql_annotation(instance.def_id());
+
+        // Stack not empty but no raise annotation
+        if !final_state.stack.is_empty() && annotation.raise.is_none() {
+            let mut diag = self.dcx().struct_err("IRQl error");
+            diag.span_note(
+                body.span,
+                "Function raises IRQL, but does not lower it before returning.",
+            );
+            diag.help("Either lower the IRQL before returning or add a `#[raise = X]` annotation.");
+            diag.emit();
+        }
+
+        // Raise annotation exists, but does not match final level
+        let Some(declared_raise) = annotation.raise else {
+            return;
+        };
+
+        if final_state.current != declared_raise {
+            let mut diag = self.dcx().struct_err("IRQl error");
+            diag.span_note(
+                body.span,
+                format!(
+                    "Function is annotated to raise IRQL to {}, but ends at IRQL {}.",
+                    declared_raise.value, final_state.current.value
+                ),
+            );
+            diag.help("Ensure the `#[raise = X]` annotation matches the actual final IRQL level.");
+            diag.emit();
+        }
+    }
+}

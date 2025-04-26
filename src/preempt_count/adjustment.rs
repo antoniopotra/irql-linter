@@ -731,14 +731,12 @@ memoize!(
         {
             match (result, recur) {
                 (_, Err(Error::Error(_))) => {
-                    // This should not happen because the recursive callee should either return 0
-                    // or TooGeneric (see above).
+                    // This should not happen because the recursive callee should either return 0 or TooGeneric (see above).
                     bug!("recursive callee errors");
                 }
+                (Err(_), Ok(_)) => bug!("monormorphic caller too generic"),
                 // Error already reported.
-                (Err(Error::Error(_)), _) => (),
-                (Err(Error::TooGeneric), Err(Error::TooGeneric)) => (),
-                (Ok(a), Ok(b)) if a == b => (),
+                (Err(_), _) => (),
                 (Ok(_), Err(Error::TooGeneric)) => {
                     // This can happen when the recursive call only occurs in a false, unwinding, or diverging path.
                     // (e.g. perform a recursive call, then diverge).
@@ -747,7 +745,8 @@ memoize!(
                     // going to return `TooGeneric` so that it's tried later.
                     result = Err(Error::TooGeneric);
                 }
-                (Err(_), Ok(_)) => bug!("monormorphic caller too generic"),
+                (Ok(_), Err(_)) => (),
+                (Ok(a), Ok(b)) if a == b => (),
                 (Ok(adj), Ok(_)) => {
                     let mut diag = cx.dcx().struct_span_err(
                         cx.def_span(instance.def_id()),

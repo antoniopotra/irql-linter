@@ -1,9 +1,7 @@
 use crate::ctxt::AnalysisCtxt;
-use crate::error::Error;
 use crate::irql::IrqlRequirement;
 use rustc_hir::def_id::LocalDefId;
 use rustc_lint::{LateContext, LateLintPass};
-use rustc_middle::mir::mono::MonoItem;
 use rustc_middle::ty::{GenericArgs, Instance, TyCtxt, TypingEnv};
 use rustc_session::{declare_tool_lint, impl_lint_pass};
 use rustc_span::Span;
@@ -19,8 +17,8 @@ pub struct IrqlRules<'tcx> {
 }
 
 impl<'tcx> IrqlRules<'tcx> {
-    pub fn new(tcx: TyCtxt<'tcx>) -> Self {
-        Self {
+    pub fn new(tcx: TyCtxt<'tcx>) -> IrqlRules<'tcx> {
+        IrqlRules {
             cx: AnalysisCtxt::new(tcx),
         }
     }
@@ -172,42 +170,20 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
         _: rustc_hir::intravisit::FnKind<'tcx>,
         _: &'tcx rustc_hir::FnDecl<'tcx>,
         _body: &'tcx rustc_hir::Body<'tcx>,
-        _: rustc_span::Span,
+        _span: rustc_span::Span,
         def_id: LocalDefId,
     ) {
-        // Building MIR for `fn`s with unsatisfiable preds results in ICE.
         if crate::util::fn_has_unsatisfiable_preds(cx, def_id.to_def_id()) {
             return;
         }
 
         let identity = cx
             .tcx
-            .erase_regions(GenericArgs::identity_for_item(self.cx.tcx, def_id));
-        let instance = Instance::new(def_id.into(), identity);
-        let poly_instance = TypingEnv::post_analysis(*self.cx, def_id).as_query_input(instance);
-        let _ = self.cx.instance_requirement(poly_instance);
-        let _ = self.cx.instance_raise(poly_instance);
-    }
+            .erase_regions(GenericArgs::identity_for_item(cx.tcx, def_id));
+        let instance = Instance::new(def_id.to_def_id(), identity);
+        let env = TypingEnv::post_analysis(*self.cx, def_id);
+        let body = cx.tcx.optimized_mir(instance.def_id());
 
-    fn check_crate_post(&mut self, cx: &LateContext<'tcx>) {
-        let mono_items = super::monomorphize_collector::collect_crate_mono_items(
-            cx.tcx,
-            crate::monomorphize_collector::MonoItemCollectionMode::Eager,
-        )
-        .0;
-
-        for mono_item in mono_items {
-            if let MonoItem::Fn(instance) = mono_item {
-                let poly_instance = TypingEnv::fully_monomorphized().as_query_input(instance);
-                if let Err(Error::TooGeneric) = self.cx.instance_requirement(poly_instance) {
-                    bug!("monomorphized function should not be too generic");
-                }
-                if let Err(Error::TooGeneric) = self.cx.instance_raise(poly_instance) {
-                    bug!("monomorphized function should not be too generic");
-                }
-            }
-        }
-
-        self.cx.encode_mir();
+        self.cx.check_irql(env, instance, body);
     }
 }

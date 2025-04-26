@@ -1,7 +1,6 @@
 pub mod annotation;
+pub mod check;
 pub mod dataflow;
-pub mod raise;
-pub mod requirement;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Encodable, Decodable, Clone, Copy)]
 pub struct IrqlValue {
@@ -41,8 +40,21 @@ impl IrqlRange {
     }
 }
 
-#[derive(Debug, Clone, Copy, Encodable, Decodable)]
+#[derive(Debug, Clone, Copy, Encodable, Decodable, PartialEq, Eq)]
 pub enum IrqlRequirement {
     Call(IrqlRange),
     Permanent(IrqlRange),
+}
+
+impl IrqlRequirement {
+    pub fn unbounded() -> IrqlRequirement {
+        IrqlRequirement::Call(IrqlRange::unbounded())
+    }
+
+    pub fn range(&self) -> IrqlRange {
+        match self {
+            IrqlRequirement::Call(irql_range) => *irql_range,
+            IrqlRequirement::Permanent(irql_range) => *irql_range,
+        }
+    }
 }
