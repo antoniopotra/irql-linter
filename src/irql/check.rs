@@ -40,11 +40,11 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                         diag.span_note(
                             *span,
                             format!(
-                                "KeLowerIrql lowered IRQL to {}, but expected {}",
+                                "KeLowerIrql lowered IRQL to {}, but expected {}.",
                                 actual.value, expected.value
                             ),
                         );
-                        diag.help("Ensure you lower to the original IRQL level before the raise.");
+                        diag.help("Ensure you lower to the original IRQL level before the previous raise.");
                         diag.emit();
                     }
                     Error::IrqlStackUnderflow { span } => {
@@ -104,7 +104,6 @@ impl<'tcx> AnalysisCtxt<'tcx> {
             }
         }
 
-        // Final return block state
         irql_computation.seek_to_block_start(body.basic_blocks.last_index().unwrap());
         let IrqlStateOrError::IrqlState(final_state) = irql_computation.get() else {
             return;
@@ -112,14 +111,13 @@ impl<'tcx> AnalysisCtxt<'tcx> {
 
         let annotation = self.irql_annotation(instance.def_id());
 
-        // Stack not empty but no raise annotation
         if !final_state.stack.is_empty() && annotation.raise.is_none() {
             let mut diag = self.dcx().struct_err("IRQl error");
             diag.span_note(
                 body.span,
                 "Function raises IRQL, but does not lower it before returning.",
             );
-            diag.help("Either lower the IRQL before returning or add a `#[raise = X]` annotation.");
+            diag.help(format!("Either lower the IRQL before returning or add a `#[klint::irql(raise = {})` annotation.", final_state.stack.last().unwrap().value.value));
             diag.emit();
         }
 
@@ -137,7 +135,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                     declared_raise.value, final_state.current.value
                 ),
             );
-            diag.help("Ensure the `#[raise = X]` annotation matches the actual final IRQL level.");
+            diag.help("Ensure the raise annotation and the final IRQL values match.");
             diag.emit();
         }
     }

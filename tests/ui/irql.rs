@@ -11,34 +11,39 @@ pub extern "C" fn KeLowerIrql(level: u32) {
     let _ = level;
 }
 
-// A correct use case: raise then lower with matching value
-pub fn correct_usage() {
+pub fn raise_then_lower_to_previous_value() {
     KeRaiseIrql(1);
     KeLowerIrql(0);
 }
 
-// A mismatched use case: raise with one, lower with another
-pub fn incorrect_usage() {
+pub fn raise_then_lower_to_wrong_value() {
     KeRaiseIrql(2);
     KeLowerIrql(1);
 }
 
-// A missing-lower case: raise but no lowering
-pub fn missing_lower() {
-    KeRaiseIrql(3);
-}
-
-// A nested IRQL use case
-pub fn nested_irqls() {
-    KeRaiseIrql(4);
-    KeRaiseIrql(5);
-    KeLowerIrql(4);
+pub fn lower_no_raise() {
     KeLowerIrql(0);
 }
 
-// An incorrect nested IRQL (wrong order)
-pub fn nested_wrong_order() {
+#[klint::irql(raise = 3)]
+pub fn raise_no_lower_with_annotation_same_as_raise() {
+    KeRaiseIrql(3);
+}
+
+#[klint::irql(raise = 3)]
+pub fn raise_no_lower_with_annotation_different_from_raise() {
+    KeRaiseIrql(4);
+}
+
+pub fn raise_no_lower_without_annotation() {
+    KeRaiseIrql(5);
+}
+
+pub fn multiple_raise_multiple_lower_to_previous_values() {
     KeRaiseIrql(6);
     KeRaiseIrql(7);
-    KeLowerIrql(5);
+    KeRaiseIrql(8);
+    KeLowerIrql(7);
+    KeLowerIrql(6);
+    KeLowerIrql(0);
 }

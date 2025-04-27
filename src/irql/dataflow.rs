@@ -40,17 +40,27 @@ impl JoinSemiLattice for IrqlStateOrError {
     fn join(&mut self, other: &IrqlStateOrError) -> bool {
         match (&self, other) {
             (IrqlStateOrError::Error(_), _) => false,
-            (_, IrqlStateOrError::Error(error)) => {
-                *self = IrqlStateOrError::Error(*error);
+            (_, IrqlStateOrError::Error(e)) => {
+                *self = IrqlStateOrError::Error(*e);
                 true
             }
             (IrqlStateOrError::IrqlState(a), IrqlStateOrError::IrqlState(b)) => {
+                if a.stack.is_empty() {
+                    *self = IrqlStateOrError::IrqlState(b.clone());
+                    return true;
+                }
+
+                // TODO: Is this possible?
+                if b.stack.is_empty() {
+                    return false;
+                }
+
                 if a.current != b.current {
                     *self = IrqlStateOrError::Error(Error::IrqlImpossibleJoin);
-                    true
-                } else {
-                    false
+                    return true;
                 }
+
+                false
             }
         }
     }
@@ -120,7 +130,6 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
 
         if name == "KeRaiseIrql" {
             let new_level = extract_irql_from_args(args, 0);
-            println!("raise {}", new_level.value);
             irql_state.stack.push(IrqlStackEntry::from_irql_value(
                 irql_state.current,
                 terminator,
@@ -128,7 +137,6 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
             irql_state.current = new_level;
         } else if name == "KeLowerIrql" {
             let target_level = extract_irql_from_args(args, 0);
-            println!("lower {}", target_level.value);
             let Some(previous) = irql_state.stack.pop() else {
                 *state = IrqlStateOrError::Error(Error::IrqlStackUnderflow {
                     span: terminator.source_info.span,
@@ -147,11 +155,9 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
 
             irql_state.current = target_level;
         } else {
-            // Handle raise annotations
             let Some(new_level) = self.checker.irql_annotation(def_id).raise else {
                 return terminator.edges();
             };
-            println!("annotation {}", new_level.value);
 
             irql_state.stack.push(IrqlStackEntry::from_irql_value(
                 irql_state.current,

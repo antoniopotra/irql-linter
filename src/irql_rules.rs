@@ -155,6 +155,7 @@ impl<'tcx> LateLintPass<'tcx> for IrqlRules<'tcx> {
             return;
         };
 
+        // TODO: Turn into a lint or move to dataflow.rs (which means a new error state).
         if let Some(high) = requirement.high {
             if raise < requirement.low || raise > high {
                 println!("Function which raises IRQL to {} called from function with permanent requirement in interval {} to {}", raise.value, requirement.low.value, high.value);
