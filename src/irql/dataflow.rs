@@ -1,13 +1,15 @@
 use super::IrqlValue;
 use crate::error::Error;
+use crate::irql::{utils, IrqlRequirement};
 use rustc_middle::mir::interpret::Scalar;
 use rustc_middle::mir::{
-    BasicBlock, Body, Const, ConstOperand, ConstValue, Location, Operand, Statement, Terminator,
-    TerminatorEdges,
+    BasicBlock, Body, Const, ConstValue, Local, Location, Operand, Rvalue, Statement,
+    StatementKind, Terminator, TerminatorEdges,
 };
 use rustc_middle::ty::{self, Instance, TypingEnv};
 use rustc_mir_dataflow::{fmt::DebugWithContext, Analysis, JoinSemiLattice};
-use rustc_span::source_map::Spanned;
+use rustc_span::DUMMY_SP;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IrqlStackEntry {
@@ -28,6 +30,7 @@ impl IrqlStackEntry {
 pub struct IrqlState {
     pub current: IrqlValue,
     pub stack: Vec<IrqlStackEntry>,
+    pub known_values: HashMap<Local, IrqlValue>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,7 +59,16 @@ impl JoinSemiLattice for IrqlStateOrError {
                 }
 
                 if a.current != b.current {
-                    *self = IrqlStateOrError::Error(Error::IrqlImpossibleJoin);
+                    let left_span = a.stack.last().map_or(DUMMY_SP, |e| e.span);
+                    let right_span = b.stack.last().map_or(DUMMY_SP, |e| e.span);
+
+                    *self = IrqlStateOrError::Error(Error::IrqlImpossibleJoin {
+                        left_value: a.current,
+                        right_value: b.current,
+                        left_span,
+                        right_span,
+                    });
+
                     return true;
                 }
 
@@ -83,19 +95,39 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
         IrqlStateOrError::IrqlState(IrqlState {
             current: IrqlValue::passive_level(),
             stack: vec![],
+            known_values: HashMap::new(),
         })
     }
 
-    fn initialize_start_block(&self, _body: &Body<'tcx>, state: &mut Self::Domain) {
-        *state = self.bottom_value(_body);
+    fn initialize_start_block(&self, body: &Body<'tcx>, state: &mut Self::Domain) {
+        // TODO: Issue found during testing - No entry point is set yet => Can generate a false positive in one place and none in another.
+        *state = self.bottom_value(body);
     }
 
     fn apply_primary_statement_effect(
         &mut self,
-        _state: &mut Self::Domain,
-        _statement: &Statement<'tcx>,
+        state: &mut Self::Domain,
+        statement: &Statement<'tcx>,
         _location: Location,
     ) {
+        let IrqlStateOrError::IrqlState(irql_state) = state else {
+            return;
+        };
+
+        if let StatementKind::Assign(box (place, Rvalue::Use(Operand::Constant(c)))) =
+            &statement.kind
+        {
+            if let Some(local) = place.as_local() {
+                if let Const::Val(ConstValue::Scalar(Scalar::Int(scalar)), _) = c.const_ {
+                    irql_state.known_values.insert(
+                        local,
+                        IrqlValue {
+                            value: scalar.to_u32(),
+                        },
+                    );
+                }
+            }
+        }
     }
 
     fn apply_primary_terminator_effect<'mir>(
@@ -129,14 +161,33 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
         let name = name.as_str();
 
         if name == "KeRaiseIrql" {
-            let new_level = extract_irql_from_args(args, 0);
+            let Some(new_level) = utils::extract_irql_from_args(irql_state, args, 0) else {
+                return terminator.edges();
+            };
+
+            if let Some(IrqlRequirement::Permanent(range)) =
+                self.checker.irql_annotation(def_id).requirement
+            {
+                if !range.contains(new_level) {
+                    *state = IrqlStateOrError::Error(Error::IrqlOutsideOfPermanentRequirement {
+                        change_to: new_level,
+                        permanent_range: range,
+                        span: terminator.source_info.span,
+                    });
+                    return terminator.edges();
+                }
+            }
+
             irql_state.stack.push(IrqlStackEntry::from_irql_value(
                 irql_state.current,
                 terminator,
             ));
             irql_state.current = new_level;
         } else if name == "KeLowerIrql" {
-            let target_level = extract_irql_from_args(args, 0);
+            let Some(target_level) = utils::extract_irql_from_args(irql_state, args, 0) else {
+                return terminator.edges();
+            };
+
             let Some(previous) = irql_state.stack.pop() else {
                 *state = IrqlStateOrError::Error(Error::IrqlStackUnderflow {
                     span: terminator.source_info.span,
@@ -153,11 +204,37 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
                 return terminator.edges();
             }
 
+            if let Some(IrqlRequirement::Permanent(range)) =
+                self.checker.irql_annotation(def_id).requirement
+            {
+                if !range.contains(target_level) {
+                    *state = IrqlStateOrError::Error(Error::IrqlOutsideOfPermanentRequirement {
+                        change_to: target_level,
+                        permanent_range: range,
+                        span: terminator.source_info.span,
+                    });
+                    return terminator.edges();
+                }
+            }
+
             irql_state.current = target_level;
         } else {
             let Some(new_level) = self.checker.irql_annotation(def_id).raise else {
                 return terminator.edges();
             };
+
+            if let Some(IrqlRequirement::Permanent(range)) =
+                self.checker.irql_annotation(def_id).requirement
+            {
+                if !range.contains(new_level) {
+                    *state = IrqlStateOrError::Error(Error::IrqlOutsideOfPermanentRequirement {
+                        change_to: new_level,
+                        permanent_range: range,
+                        span: terminator.source_info.span,
+                    });
+                    return terminator.edges();
+                }
+            }
 
             irql_state.stack.push(IrqlStackEntry::from_irql_value(
                 irql_state.current,
@@ -175,23 +252,5 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
         _block: BasicBlock,
         _return_places: rustc_middle::mir::CallReturnPlaces<'_, 'tcx>,
     ) {
-    }
-}
-
-fn extract_irql_from_args(args: &[Spanned<Operand<'_>>], arg_index: usize) -> IrqlValue {
-    let Spanned {
-        node:
-            Operand::Constant(box ConstOperand {
-                const_: Const::Val(ConstValue::Scalar(Scalar::Int(scalar_int)), _),
-                ..
-            }),
-        ..
-    } = args[arg_index]
-    else {
-        panic!("Could not extract IrqlValue from argument with index {arg_index}.");
-    };
-
-    IrqlValue {
-        value: scalar_int.to_u32(),
     }
 }

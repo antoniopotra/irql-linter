@@ -31,24 +31,29 @@ impl<'tcx> AnalysisCtxt<'tcx> {
 
             match irql_state_or_error {
                 IrqlStateOrError::Error(error) => match error {
-                    Error::IrqlLoweringMismatch {
-                        expected,
-                        actual,
-                        span,
+                    Error::TooGeneric => {}
+                    Error::IrqlImpossibleJoin {
+                        left_value,
+                        right_value,
+                        left_span,
+                        right_span,
                     } => {
-                        let mut diag = self.dcx().struct_err("IRQl error");
+                        let mut diag = self
+                            .dcx()
+                            .struct_err("IRQL join error at control-flow merge");
                         diag.span_note(
-                            *span,
-                            format!(
-                                "KeLowerIrql lowered IRQL to {}, but expected {}.",
-                                actual.value, expected.value
-                            ),
+                            *left_span,
+                            format!("This branch ends with IRQL level `{}`", left_value),
                         );
-                        diag.help("Ensure you lower to the original IRQL level before the previous raise.");
+                        diag.span_note(
+                            *right_span,
+                            format!("This branch ends with IRQL level `{}`", right_value),
+                        );
+                        diag.help("All control-flow paths must end with the same IRQL level to be joinable.");
                         diag.emit();
                     }
                     Error::IrqlStackUnderflow { span } => {
-                        let mut diag = self.dcx().struct_err("IRQl error");
+                        let mut diag = self.dcx().struct_err("IRQl stack underflow error");
                         diag.span_note(
                             *span,
                             "KeLowerIrql called but there was no previous raise.",
@@ -56,7 +61,41 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                         diag.help("Ensure you raise IRQL before lowering.");
                         diag.emit();
                     }
-                    _ => {}
+                    Error::IrqlLoweringMismatch {
+                        expected,
+                        actual,
+                        span,
+                    } => {
+                        let mut diag = self.dcx().struct_err("IRQl lowering error");
+                        diag.span_note(
+                            *span,
+                            format!(
+                                "KeLowerIrql lowered IRQL to {}, but expected {}.",
+                                actual, expected
+                            ),
+                        );
+                        diag.help("Ensure you lower to the original IRQL level before the previous raise.");
+                        diag.emit();
+                    }
+                    Error::IrqlOutsideOfPermanentRequirement {
+                        change_to,
+                        permanent_range,
+                        span,
+                    } => {
+                        let mut diag = self.dcx().struct_err("IRQl permanent requirement error");
+                        diag.span_note(
+                            *span,
+                            format!(
+                                "IRQL changed to {}, outside permanent requirement {}.",
+                                change_to, permanent_range
+                            ),
+                        );
+                        diag.help(
+                            "Ensure the IRQL level does not go oustide the permanent bounds.",
+                        );
+                        diag.emit();
+                    }
+                    Error::Guaranteed(_) => {}
                 },
                 IrqlStateOrError::IrqlState(irql_state) => {
                     let terminator = block_data.terminator();
@@ -83,16 +122,14 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                         continue;
                     };
 
-                    if irql_state.current < range.low
-                        || range.high.is_some_and(|h| irql_state.current > h)
-                    {
+                    if !range.contains(irql_state.current) {
                         let span = terminator.source_info.span;
-                        let mut diag = self.dcx().struct_err("IRQl error");
+                        let mut diag = self.dcx().struct_err("IRQl call requirement error");
                         diag.span_note(
                             span,
                             format!(
-                                "IRQL is {} when calling `{}`, but it requires {:?}",
-                                irql_state.current.value,
+                                "IRQL is {} when calling `{}`, but it requires {}",
+                                irql_state.current,
                                 self.tcx.item_name(def_id),
                                 range
                             ),
@@ -112,27 +149,26 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         let annotation = self.irql_annotation(instance.def_id());
 
         if !final_state.stack.is_empty() && annotation.raise.is_none() {
-            let mut diag = self.dcx().struct_err("IRQl error");
+            let mut diag = self.dcx().struct_err("IRQl raise not caught error");
             diag.span_note(
                 body.span,
                 "Function raises IRQL, but does not lower it before returning.",
             );
-            diag.help(format!("Either lower the IRQL before returning or add a `#[klint::irql(raise = {})` annotation.", final_state.stack.last().unwrap().value.value));
+            diag.help(format!("Either lower the IRQL before returning or add a `#[klint::irql(raise = {})]` annotation.", final_state.current));
             diag.emit();
         }
 
-        // Raise annotation exists, but does not match final level
         let Some(declared_raise) = annotation.raise else {
             return;
         };
 
         if final_state.current != declared_raise {
-            let mut diag = self.dcx().struct_err("IRQl error");
+            let mut diag = self.dcx().struct_err("IRQl annotation mismatch error");
             diag.span_note(
                 body.span,
                 format!(
                     "Function is annotated to raise IRQL to {}, but ends at IRQL {}.",
-                    declared_raise.value, final_state.current.value
+                    declared_raise, final_state.current
                 ),
             );
             diag.help("Ensure the raise annotation and the final IRQL values match.");

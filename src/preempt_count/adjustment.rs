@@ -27,7 +27,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
             "preemption count overflow when trying to compute adjustment of type `{}",
             PolyDisplay(&poly_ty)
         ));
-        Err(Error::Error(self.emit_with_use_site_info(diag)))
+        Err(Error::Guaranteed(self.emit_with_use_site_info(diag)))
     }
 
     fn poly_instance_of_def_id(&self, def_id: DefId) -> PseudoCanonicalInput<'tcx, Instance<'tcx>> {
@@ -311,7 +311,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
         } else if let Some(v) = adjustment.is_single_value() {
             v
         } else {
-            return Err(Error::Error(self.report_adjustment_infer_error(
+            return Err(Error::Guaranteed(self.report_adjustment_infer_error(
                 instance,
                 body,
                 &mut analysis_result,
@@ -474,7 +474,7 @@ memoize!(
                         "because slice can contain variable number of elements, adjustment \
                                for dropping the slice cannot be computed statically",
                     );
-                    return Err(Error::Error(cx.emit_with_use_site_info(diag)));
+                    return Err(Error::Guaranteed(cx.emit_with_use_site_info(diag)));
                 }
                 return Ok(0);
             }
@@ -517,9 +517,9 @@ memoize!(
         // Recursion encountered.
         if let Some(&recur) = cx.query_cache::<drop_adjustment>().borrow().get(&poly_ty) {
             match (result, recur) {
-                (_, Err(Error::Error(_))) => bug!("recursive callee errors"),
+                (_, Err(Error::Guaranteed(_))) => bug!("recursive callee errors"),
                 // Error already reported.
-                (Err(Error::Error(_)), _) => (),
+                (Err(Error::Guaranteed(_)), _) => (),
                 (Err(_), Err(_)) => (),
                 (Ok(a), Ok(b)) if a == b => (),
                 (Ok(_), Err(_)) => bug!("recursive callee too generic but caller is not"),
@@ -730,7 +730,7 @@ memoize!(
             .get(&poly_instance)
         {
             match (result, recur) {
-                (_, Err(Error::Error(_))) => {
+                (_, Err(Error::Guaranteed(_))) => {
                     // This should not happen because the recursive callee should either return 0 or TooGeneric (see above).
                     bug!("recursive callee errors");
                 }

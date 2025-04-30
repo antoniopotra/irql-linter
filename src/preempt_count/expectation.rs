@@ -619,7 +619,7 @@ impl<'tcx> AnalysisCtxt<'tcx> {
                 ));
 
                 // Stop processing other calls in this function to avoid generating too many errors.
-                return Err(Error::Error(self.emit_with_use_site_info(diag)));
+                return Err(Error::Guaranteed(self.emit_with_use_site_info(diag)));
             }
 
             expectation_infer = expected;
@@ -712,7 +712,7 @@ memoize!(
                         exp + adj_bound
                     ));
                     diag.note(format!("content being dropped is `{}`", boxed_ty));
-                    return Err(Error::Error(cx.emit_with_use_site_info(diag)));
+                    return Err(Error::Guaranteed(cx.emit_with_use_site_info(diag)));
                 }
 
                 return Ok(expected);
@@ -801,7 +801,7 @@ memoize!(
                         elem_exp + last_adj_bound
                     ));
                     diag.note(format!("array being dropped is `{}`", ty));
-                    return Err(Error::Error(cx.emit_with_use_site_info(diag)));
+                    return Err(Error::Guaranteed(cx.emit_with_use_site_info(diag)));
                 }
 
                 return Ok(expected);
@@ -851,9 +851,9 @@ memoize!(
         // Recursion encountered.
         if let Some(&recur) = cx.query_cache::<drop_expectation>().borrow().get(&poly_ty) {
             match (result, recur) {
-                (_, Err(Error::Error(_))) => bug!("recursive callee errors"),
+                (_, Err(Error::Guaranteed(_))) => bug!("recursive callee errors"),
                 // Error already reported.
-                (Err(Error::Error(_)), _) => (),
+                (Err(Error::Guaranteed(_)), _) => (),
                 (Err(_), Err(_)) => (),
                 (Ok(a), Ok(b)) if a == b => (),
                 (Ok(_), Err(_)) => bug!("recursive callee too generic but caller is not"),
@@ -1073,9 +1073,9 @@ memoize!(
             .get(&poly_instance)
         {
             match (result, recur) {
-                (_, Err(Error::Error(_))) => bug!("recursive callee errors"),
+                (_, Err(Error::Guaranteed(_))) => bug!("recursive callee errors"),
                 // Error already reported.
-                (Err(Error::Error(_)), _) => (),
+                (Err(Error::Guaranteed(_)), _) => (),
                 (Err(_), Err(_)) => (),
                 (Ok(a), Ok(b)) if a == *b => (),
                 (Ok(_), Err(_)) => bug!("recursive callee too generic but caller is not"),

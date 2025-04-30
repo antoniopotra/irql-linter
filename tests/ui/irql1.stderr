@@ -1,0 +1,74 @@
+error: IRQl lowering error
+   |
+note: KeLowerIrql lowered IRQL to 1, but expected 0.
+  --> $DIR/irql1.rs:20:5
+   |
+20 |     KeLowerIrql(1);
+   |     ^^^^^^^^^^^^^^
+   = help: Ensure you lower to the original IRQL level before the previous raise.
+
+error: IRQl stack underflow error
+   |
+note: KeLowerIrql called but there was no previous raise.
+  --> $DIR/irql1.rs:24:5
+   |
+24 |     KeLowerIrql(0);
+   |     ^^^^^^^^^^^^^^
+   = help: Ensure you raise IRQL before lowering.
+
+error: IRQl annotation mismatch error
+   |
+note: Function is annotated to raise IRQL to 3, but ends at IRQL 4.
+  --> $DIR/irql1.rs:33:1
+   |
+33 | / pub fn raise_no_lower_with_annotation_different_from_raise() {
+34 | |     KeRaiseIrql(4);
+35 | | }
+   | |_^
+   = help: Ensure the raise annotation and the final IRQL values match.
+
+error: IRQl raise not caught error
+   |
+note: Function raises IRQL, but does not lower it before returning.
+  --> $DIR/irql1.rs:37:1
+   |
+37 | / pub fn raise_no_lower_without_annotation() {
+38 | |     KeRaiseIrql(5);
+39 | | }
+   | |_^
+   = help: Either lower the IRQL before returning or add a `#[klint::irql(raise = 5)]` annotation.
+
+error: IRQl lowering error
+   |
+note: KeLowerIrql lowered IRQL to 3, but expected 7.
+  --> $DIR/irql1.rs:60:13
+   |
+60 |             KeLowerIrql(3);
+   |             ^^^^^^^^^^^^^^
+   = help: Ensure you lower to the original IRQL level before the previous raise.
+
+error: IRQl raise not caught error
+   |
+note: Function raises IRQL, but does not lower it before returning.
+  --> $DIR/irql1.rs:77:1
+   |
+77 | / pub fn conditional_branch_join_at_different_levels(cond: bool) {
+78 | |     if cond {
+79 | |         KeRaiseIrql(11);
+80 | |         KeLowerIrql(0);
+...  |
+84 | | }
+   | |_^
+   = help: Either lower the IRQL before returning or add a `#[klint::irql(raise = 12)]` annotation.
+
+error: IRQl stack underflow error
+   |
+note: KeLowerIrql called but there was no previous raise.
+  --> $DIR/irql1.rs:91:5
+   |
+91 |     KeLowerIrql(0);
+   |     ^^^^^^^^^^^^^^
+   = help: Ensure you raise IRQL before lowering.
+
+error: aborting due to 7 previous errors
+

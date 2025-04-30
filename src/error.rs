@@ -1,18 +1,28 @@
+use crate::irql::{IrqlRange, IrqlValue};
 use rustc_errors::ErrorGuaranteed;
-
-use crate::irql::IrqlValue;
+use rustc_span::Span;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encodable, Decodable)]
 pub enum Error {
     TooGeneric,
-    IrqlImpossibleJoin,
+    IrqlImpossibleJoin {
+        left_value: IrqlValue,
+        right_value: IrqlValue,
+        left_span: Span,
+        right_span: Span,
+    },
     IrqlStackUnderflow {
-        span: rustc_span::Span,
+        span: Span,
     },
     IrqlLoweringMismatch {
         expected: IrqlValue,
         actual: IrqlValue,
-        span: rustc_span::Span,
+        span: Span,
     },
-    Error(ErrorGuaranteed),
+    IrqlOutsideOfPermanentRequirement {
+        change_to: IrqlValue,
+        permanent_range: IrqlRange,
+        span: Span,
+    },
+    Guaranteed(ErrorGuaranteed),
 }

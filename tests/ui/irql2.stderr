@@ -1,0 +1,29 @@
+error: IRQl lowering error
+   |
+note: KeLowerIrql lowered IRQL to 1, but expected 0.
+  --> $DIR/irql2.rs:29:9
+   |
+29 |         KeLowerIrql(1);
+   |         ^^^^^^^^^^^^^^
+   = help: Ensure you lower to the original IRQL level before the previous raise.
+
+error: IRQl call requirement error
+   |
+note: IRQL is 0 when calling `f1`, but it requires 1
+  --> $DIR/irql2.rs:31:9
+   |
+31 |         f1();
+   |         ^^^^
+   = help: Ensure IRQL is raised to the correct level before this call.
+
+error: IRQl call requirement error
+   |
+note: IRQL is 0 when calling `f1`, but it requires 1
+  --> $DIR/irql2.rs:51:9
+   |
+51 |         f1();
+   |         ^^^^
+   = help: Ensure IRQL is raised to the correct level before this call.
+
+error: aborting due to 3 previous errors
+
