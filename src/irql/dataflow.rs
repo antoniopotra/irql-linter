@@ -147,20 +147,20 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
         };
 
         let function_ty = func.ty(self.body, self.checker.tcx);
-        let function_ty = self.instance.instantiate_mir_and_normalize_erasing_regions(
+        let norm = self.instance.instantiate_mir_and_normalize_erasing_regions(
             self.checker.tcx,
             self.typing_env,
             ty::EarlyBinder::bind(function_ty),
         );
-
-        let ty::FnDef(def_id, _) = *function_ty.kind() else {
-            return terminator.edges();
+        let (def_id, substs) = match *norm.kind() {
+            ty::FnDef(did, substs) => (did, substs),
+            _ => return terminator.edges(),
         };
 
-        let name = self.checker.tcx.item_name(def_id);
-        let name = name.as_str();
+        let callee_instance = rustc_middle::ty::Instance::new(def_id, substs);
+        let symbol_name = self.checker.tcx.symbol_name(callee_instance).name;
 
-        if name == "KeRaiseIrql" {
+        if symbol_name == "KeRaiseIrql" {
             let Some(new_level) = utils::extract_irql_from_args(irql_state, args, 0) else {
                 return terminator.edges();
             };
@@ -183,7 +183,7 @@ impl<'tcx> Analysis<'tcx> for IrqlComputation<'_, 'tcx, '_> {
                 terminator,
             ));
             irql_state.current = new_level;
-        } else if name == "KeLowerIrql" {
+        } else if symbol_name == "KeLowerIrql" {
             let Some(target_level) = utils::extract_irql_from_args(irql_state, args, 0) else {
                 return terminator.edges();
             };
