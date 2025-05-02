@@ -49,11 +49,17 @@ impl IrqlRange {
     }
 
     pub fn contains(&self, irql_value: IrqlValue) -> bool {
-        if let Some(high) = self.high {
-            irql_value >= self.low && irql_value <= high
-        } else {
-            irql_value == self.low
+        if irql_value < self.low {
+            return false;
         }
+
+        if let Some(high) = self.high
+            && irql_value > high
+        {
+            return false;
+        }
+
+        true
     }
 }
 
