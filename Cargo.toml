@@ -9,7 +9,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-rusqlite = "0.34.0"
+rusqlite = { version = "0.34.0", features = ["bundled"] }
 home = "0.5.11"
 
 [dev-dependencies]
